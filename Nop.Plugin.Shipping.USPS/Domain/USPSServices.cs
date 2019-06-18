@@ -2,7 +2,6 @@
 // Contributor(s): RJH 08/07/2009, mb 10/20/2010. 
 //------------------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -71,7 +70,7 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         public static string GetServiceIdDomestic(string service)
         {
             var serviceId = "";
-            if (String.IsNullOrEmpty(service))
+            if (string.IsNullOrEmpty(service))
                 return serviceId;
 
             if (_domesticServices.ContainsKey(service))
@@ -88,7 +87,7 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         public static string GetServiceIdInternational(string service)
         {
             var serviceId = "";
-            if (String.IsNullOrEmpty(service))
+            if (string.IsNullOrEmpty(service))
                 return serviceId;
 
             if (_internationalServices.ContainsKey(service))
@@ -104,24 +103,12 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         /// <summary>
         /// USPS Domestic services string names
         /// </summary>
-        public static string[] DomesticServices
-        {
-            get
-            {
-                return _domesticServices.Keys.Select(x => x).ToArray();
-            }
-        }
+        public static string[] DomesticServices => _domesticServices.Keys.Select(x => x).ToArray();
 
         /// <summary>
         /// USPS International services string names
         /// </summary>
-        public static string[] InternationalServices
-        {
-            get
-            {
-                return _internationalServices.Keys.Select(x => x).ToArray();
-            }
-        }
+        public static string[] InternationalServices => _internationalServices.Keys.Select(x => x).ToArray();
 
         #endregion
     }

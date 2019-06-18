@@ -10,38 +10,27 @@ namespace Nop.Plugin.Shipping.USPS.Domain
     public class USPSStrings
     {
         /// <summary>
-        /// String array field instance.
-        /// </summary>
-        /// Comment out the services not needed. 
-        private readonly string[] _elements = {      // "Priority Express", 
-                                    // "Priority Express SH",
-                                    // "Priority Express Commercial",
-                                    // "Priority Express SH Commercial",
-                                    // "First Class",                       /* 13 oz limit */
-                                    // "Priority",
-                                    // "Priority Commercial",
-                                    // "Parcel", 
-                                    // "Library",
-                                    // "BPM",
-                                    // "Media",
-                                    "ALL",  //USPSStrings Elements should only have "ALL" uncommented as rates are filtered on response, not request
-                                    // "ONLINE" 
-                                 };
-
-        /// <summary>
         /// String array property getter.
         /// </summary>
-        public string[] Elements
-        {
-            get { return _elements; }
-        }
+        public string[] Elements { get; } = {      
+            // "Priority Express", 
+            // "Priority Express SH",
+            // "Priority Express Commercial",
+            // "Priority Express SH Commercial",
+            // "First Class",                       /* 13 oz limit */
+            // "Priority",
+            // "Priority Commercial",
+            // "Parcel", 
+            // "Library",
+            // "BPM",
+            // "Media",
+            "ALL",  //USPSStrings Elements should only have "ALL" uncommented as rates are filtered on response, not request
+                                            // "ONLINE" 
+        };
 
         /// <summary>
         /// String array indexer.
         /// </summary>
-        public string this[int index]
-        {
-            get { return _elements[index]; }
-        }
+        public string this[int index] => Elements[index];
     }
 }

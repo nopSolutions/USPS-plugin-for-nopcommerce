@@ -25,15 +25,19 @@ namespace Nop.Plugin.Shipping.USPS.Models
 
         [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge")]
         public decimal AdditionalHandlingCharge { get; set; }
-        
+
         public IList<string> CarrierServicesOfferedDomestic { get; set; }
+
         [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic")]
         public IList<string> AvailableCarrierServicesDomestic { get; set; }
+
         public string[] CheckedCarrierServicesDomestic { get; set; }
 
         public IList<string> CarrierServicesOfferedInternational { get; set; }
+
         [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational")]
         public IList<string> AvailableCarrierServicesInternational { get; set; }
+
         public string[] CheckedCarrierServicesInternational { get; set; }
     }
 }
