@@ -201,14 +201,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 var mailType = "Package"; //Package, Envelope
                 var packageSize = GetPackageSize(length, height, width);
 
-                var countryName = getShippingOptionRequest.ShippingAddress.Country.Name;
-                //USPS country hacks
-                //The USPS wants the NAME of the country for international shipments rather than one of the ISO codes
-                //It requires "Korea, Republic of (South Korea)" rather than "Korea".
-                if (countryName == "Korea")
-                {
-                    countryName = "Korea, Republic of (South Korea)";
-                }
+                var countryName = FormatCountryForIntlRequest(getShippingOptionRequest);
 
                 if ((!IsPackageTooHeavy(pounds)) && (!IsPackageTooLarge(length, height, width)))
                 {
@@ -321,6 +314,39 @@ namespace Nop.Plugin.Shipping.USPS.Services
             );
 
             return document.ToString(SaveOptions.DisableFormatting);
+        }
+
+        /// <summary>
+        /// USPS country hacks
+        /// The USPS wants the NAME of the country for international shipments rather than one of the ISO codes
+        /// </summary>
+        /// <param name="getShippingOptionRequest">Request</param>
+        /// <returns></returns>
+        private string FormatCountryForIntlRequest(GetShippingOptionRequest shippingOptionRequest)
+        {
+            var uspsCountriesWithIsoCode = new Dictionary<string, string>
+            {
+                ["LBY"] = "Cyjrenaica (Libya)", //Libyan Arab Jamahiriya
+                ["LAO"] = "Laos", //Lao People's Democratic Republic
+                ["FLK"] = "South Georgia (Falkland Islands)", //Falkland Islands (Malvinas)
+                ["IRN"] = "Iran", //Iran (Islamic Republic of)
+                ["SJM"] = "Svalbard and Jan Mayen Islands",
+                ["SWZ"] = "Swaziland (Eswatini)", //Swaziland
+                ["VAT"] = "Vatican City", //Vatican City State (Holy See)
+                ["SSD"] = "Sudan", // South Sudan - usps only Sudan
+                ["ANT"] = "Netherlands", //Netherlands Antilles
+                ["PCN"] = "Pitcairn Island", //Pitcairn
+                ["BIH"] = "Bosnia-Herzegovina", //Bosnia and Herzegowina
+                ["BVT"] = "Norway", //Bouvet Island
+                ["CCK"] = "Cocos Island (Australia)", //Cocos (Keeling) Islands
+                ["CIV"] = "Ivory Coast", //Cote D'Ivoire
+                ["RUS"] = "Russia", //Russian Federation
+                ["KOR"] = "South Korea", //Korea
+                ["PRK"] = "North Korea" //Korea, Democratic People's Republic of
+            };
+
+            return uspsCountriesWithIsoCode.TryGetValue(shippingOptionRequest.ShippingAddress.Country.ThreeLetterIsoCode, out var countryName) ?
+                countryName : shippingOptionRequest.ShippingAddress.Country.Name;
         }
 
         /// <summary>
