@@ -16,5 +16,10 @@
         /// Used measure dimension system keyword
         /// </summary>
         public const string MEASURE_DIMENSION_SYSTEM_KEYWORD = "inches";
+
+        /// <summary>
+        /// USPS Api url
+        /// </summary>
+        public const string DEFAULT_URL = "http://production.shippingapis.com/ShippingAPI.dll";
     }
 }
