@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Nop.Core;
-using Nop.Core.Domain.Orders;
 using Nop.Core.Domain.Shipping;
 using Nop.Plugin.Shipping.USPS.Domain;
 using Nop.Services.Catalog;
@@ -60,7 +59,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
             var zipPostalCodeFrom = getShippingOptionRequest.ZipPostalCodeFrom;
             var zipPostalCodeTo = getShippingOptionRequest.ShippingAddress.ZipPostalCode;
 
-            //valid values for testing. http://testing.shippingapis.com/ShippingAPITest.dll
+            //valid values for testing.
             //Zip to = "20008"; Zip from ="10022"; weight = 2;
 
             var pounds = Convert.ToInt32(weight / 16);
@@ -350,17 +349,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
         }
 
         /// <summary>
-        /// Get dimensions values of the single shopping cart item
-        /// </summary>
-        /// <param name="item">Shopping cart item</param>
-        /// <returns>Dimensions values</returns>
-        private (decimal width, decimal length, decimal height) GetDimensionsForSingleItem(ShoppingCartItem item)
-        {
-            var items = new[] { new GetShippingOptionRequest.PackageItem(item, 1) };
-            return GetDimensions(items);
-        }
-
-        /// <summary>
         /// Get dimensions values of the package
         /// </summary>
         /// <param name="items">Package items</param>
@@ -386,34 +374,19 @@ namespace Nop.Plugin.Shipping.USPS.Services
         }
 
         /// <summary>
-        /// Get weight value of the single shopping cart item
-        /// </summary>
-        /// <param name="item">Shopping cart item</param>
-        /// <returns>Weight value</returns>
-        private decimal GetWeightForSingleItem(ShoppingCartItem item)
-        {
-            var shippingOptionRequest = new GetShippingOptionRequest
-            {
-                Customer = item.Customer,
-                Items = new[] { new GetShippingOptionRequest.PackageItem(item, 1) }
-            };
-            return GetWeight(shippingOptionRequest);
-        }
-
-        /// <summary>
         /// Get weight value of the package
         /// </summary>
         /// <param name="shippingOptionRequest">Shipping option request</param>
         /// <returns>Weight value</returns>
-        private decimal GetWeight(GetShippingOptionRequest shippingOptionRequest, int minRate = 1)
+        private int GetWeight(GetShippingOptionRequest shippingOptionRequest, int minWeight = 1)
         {
             var measureWeight = _measureService.GetMeasureWeightBySystemKeyword(USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD)
                 ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD}\" measure weight");
 
             var weight = _shippingService.GetTotalWeight(shippingOptionRequest, ignoreFreeShippedItems: true);
             weight = _measureService.ConvertFromPrimaryMeasureWeight(weight, measureWeight);
-            weight = Convert.ToInt32(Math.Ceiling(weight));
-            return Math.Max(weight, minRate);
+            weight = Math.Max(Math.Ceiling(weight), minWeight);
+            return Convert.ToInt32(weight);
         }
 
         private USPSPackageSize GetPackageSize(decimal length, decimal height, decimal width)
