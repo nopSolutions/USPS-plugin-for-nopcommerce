@@ -28,7 +28,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
         public USPSHttpClient(HttpClient client, USPSSettings uspsSettings)
         {
             //configure client
-            client.BaseAddress = new Uri(uspsSettings.Url ?? USPSShippingDefaults.DEFAULT_URL);
+            client.BaseAddress = !string.IsNullOrEmpty(uspsSettings.Url) ? new Uri(uspsSettings.Url) : new Uri(USPSShippingDefaults.DEFAULT_URL);
             client.Timeout = TimeSpan.FromMilliseconds(5000);
             client.DefaultRequestHeaders.Add(HeaderNames.UserAgent, $"nopCommerce-{NopVersion.CurrentVersion}");
             client.DefaultRequestHeaders.Add(HeaderNames.Accept, MimeTypes.ApplicationXml);
