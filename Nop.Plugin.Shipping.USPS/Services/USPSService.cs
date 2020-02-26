@@ -492,14 +492,23 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 return (shippingOptions, response.Packages.Select(x => $"Error Desc: {x.Error.Description}. USPS Help Context: {x.Error.HelpContext}."));
             }
 
-            shippingOptions.AddRange(response.Packages
-                .SelectMany(x => x.Postage
-                    .Where(isPostageOffered)
-                    .Select(p => new ShippingOption
+            List<int> shippingIdsAdded = new List<int>();
+            foreach (USPSPackageBase responsePackage in response.Packages)
+            {
+                foreach (Postage postage in responsePackage.Postage)
+                {
+                    if (!shippingIdsAdded.Contains(postage.Id) && isPostageOffered(postage))
                     {
-                        Name = p.MailService,
-                        Rate = _uspsSettings.AdditionalHandlingCharge + p.Rate
-                    })));
+                        shippingIdsAdded.Add(postage.Id);
+                        ShippingOption so = new ShippingOption
+                        {
+                            Name = postage.MailService,
+                            Rate = _uspsSettings.AdditionalHandlingCharge + postage.Rate
+                        };
+                        shippingOptions.Add(so);
+                    }
+                }
+            }
 
             return (shippingOptions, null);
 
