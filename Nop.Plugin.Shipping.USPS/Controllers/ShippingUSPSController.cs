@@ -95,7 +95,6 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
         }
 
         [HttpPost]
-        [AdminAntiForgery]
         public IActionResult Configure(USPSShippingModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageShippingSettings))

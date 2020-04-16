@@ -9,6 +9,7 @@ using Nop.Plugin.Shipping.USPS.Domain;
 using Nop.Services.Catalog;
 using Nop.Services.Directory;
 using Nop.Services.Logging;
+using Nop.Services.Orders;
 using Nop.Services.Shipping;
 using Nop.Services.Shipping.Tracking;
 
@@ -20,7 +21,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
         private readonly ILogger _logger;
         private readonly IMeasureService _measureService;
-        private readonly IPriceCalculationService _priceCalculationService;
+        private readonly IShoppingCartService _shoppingCartService;
         private readonly IShippingService _shippingService;
         private readonly IWorkContext _workContext;
         private readonly USPSHttpClient _uspsHttpClient;
@@ -32,7 +33,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
         public USPSService(ILogger logger,
             IMeasureService measureService,
-            IPriceCalculationService priceCalculationService,
+            IShoppingCartService shoppingCartService,
             IShippingService shippingService,
             IWorkContext workContext,
             USPSHttpClient uspsHttpClient,
@@ -40,7 +41,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
         {
             _logger = logger;
             _measureService = measureService;
-            _priceCalculationService = priceCalculationService;
+            _shoppingCartService = shoppingCartService;
             _shippingService = shippingService;
             _workContext = workContext;
             _uspsHttpClient = uspsHttpClient;
@@ -70,7 +71,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
             foreach (var packageItem in getShippingOptionRequest.Items)
             {
                 //TODO we should use getShippingOptionRequest.Items.GetQuantity() method to get subtotal
-                subTotal += _priceCalculationService.GetSubTotal(packageItem.ShoppingCartItem);
+                subTotal += _shoppingCartService.GetSubTotal(packageItem.ShoppingCartItem);
             }
 
             var rootElementName = isDomestic ? "RateV4Request" : "IntlRateV2Request";
@@ -344,8 +345,8 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 ["PRK"] = "North Korea" //Korea, Democratic People's Republic of
             };
 
-            return uspsCountriesWithIsoCode.TryGetValue(shippingOptionRequest.ShippingAddress.Country.ThreeLetterIsoCode, out var countryName) ?
-                countryName : shippingOptionRequest.ShippingAddress.Country.Name;
+            return uspsCountriesWithIsoCode.TryGetValue(shippingOptionRequest.CountryFrom.ThreeLetterIsoCode, out var countryName) ?
+                countryName : shippingOptionRequest.CountryFrom.Name;
         }
 
         /// <summary>
@@ -453,9 +454,9 @@ namespace Nop.Plugin.Shipping.USPS.Services
         {
             //Origin Country must be USA, Collect USA from list of countries
             var result = true;
-            if (getShippingOptionRequest?.ShippingAddress?.Country != null)
+            if (getShippingOptionRequest?.CountryFrom != null)
             {
-                switch (getShippingOptionRequest.ShippingAddress.Country.ThreeLetterIsoCode)
+                switch (getShippingOptionRequest.CountryFrom.ThreeLetterIsoCode)
                 {
                     case "USA": // United States
                     case "PRI": // Puerto Rico
