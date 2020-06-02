@@ -29,7 +29,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
         {
             //configure client
             client.BaseAddress = new Uri(uspsSettings.Url ?? USPSShippingDefaults.DEFAULT_URL);
-            client.Timeout = TimeSpan.FromMilliseconds(5000);
+            client.Timeout = TimeSpan.FromSeconds(uspsSettings.ClientTimeout ?? 10);
             client.DefaultRequestHeaders.Add(HeaderNames.UserAgent, $"nopCommerce-{NopVersion.CurrentVersion}");
             client.DefaultRequestHeaders.Add(HeaderNames.Accept, MimeTypes.ApplicationXml);
 

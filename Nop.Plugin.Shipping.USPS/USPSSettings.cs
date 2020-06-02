@@ -33,5 +33,10 @@ namespace Nop.Plugin.Shipping.USPS
         /// Get or sets available international carrier services
         /// </summary>
         public string CarrierServicesOfferedInternational { get; set; }
+
+        /// <summary>
+        /// Gets or sets a period (in seconds) before the request times out.
+        /// </summary>
+        public int? ClientTimeout { get; set; }
     }
 }

@@ -94,6 +94,7 @@ namespace Nop.Plugin.Shipping.USPS
                 Url = USPSShippingDefaults.DEFAULT_URL,
                 Username = "123",
                 Password = "456",
+                ClientTimeout = 10,
                 AdditionalHandlingCharge = 0,
                 CarrierServicesOfferedDomestic = "",
                 CarrierServicesOfferedInternational = ""
