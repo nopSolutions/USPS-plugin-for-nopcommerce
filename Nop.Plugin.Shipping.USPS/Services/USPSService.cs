@@ -4,11 +4,13 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Nop.Core;
+using Nop.Core.Domain.Directory;
 using Nop.Core.Domain.Shipping;
 using Nop.Plugin.Shipping.USPS.Domain;
 using Nop.Services.Catalog;
 using Nop.Services.Directory;
 using Nop.Services.Logging;
+using Nop.Services.Orders;
 using Nop.Services.Shipping;
 using Nop.Services.Shipping.Tracking;
 
@@ -18,10 +20,11 @@ namespace Nop.Plugin.Shipping.USPS.Services
     {
         #region Fields
 
+        private readonly ICountryService _countryService;
         private readonly ILogger _logger;
         private readonly IMeasureService _measureService;
-        private readonly IPriceCalculationService _priceCalculationService;
         private readonly IShippingService _shippingService;
+        private readonly IShoppingCartService _shoppingCartService;
         private readonly IWorkContext _workContext;
         private readonly USPSHttpClient _uspsHttpClient;
         private readonly USPSSettings _uspsSettings;
@@ -30,18 +33,20 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
         #region Ctor
 
-        public USPSService(ILogger logger,
+        public USPSService(ICountryService countryService,
+            ILogger logger,
             IMeasureService measureService,
-            IPriceCalculationService priceCalculationService,
             IShippingService shippingService,
+            IShoppingCartService shoppingCartService,
             IWorkContext workContext,
             USPSHttpClient uspsHttpClient,
             USPSSettings uspsSettings)
         {
+            _countryService = countryService;
             _logger = logger;
             _measureService = measureService;
-            _priceCalculationService = priceCalculationService;
             _shippingService = shippingService;
+            _shoppingCartService = shoppingCartService;
             _workContext = workContext;
             _uspsHttpClient = uspsHttpClient;
             _uspsSettings = uspsSettings;
@@ -70,7 +75,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
             foreach (var packageItem in getShippingOptionRequest.Items)
             {
                 //TODO we should use getShippingOptionRequest.Items.GetQuantity() method to get subtotal
-                subTotal += _priceCalculationService.GetSubTotal(packageItem.ShoppingCartItem);
+                subTotal += _shoppingCartService.GetSubTotal(packageItem.ShoppingCartItem);
             }
 
             var rootElementName = isDomestic ? "RateV4Request" : "IntlRateV2Request";
@@ -140,7 +145,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
                     var pounds2 = Math.Max(pounds / totalPackages, 1);
                     //we don't use ounces
-                    var ounces2 = Math.Max(ounces / totalPackages, 1);
+                    var ounces2 = Math.Max(ounces / totalPackages, 0);
                     var height2 = Math.Max(height / totalPackages, 1);
                     var width2 = Math.Max(width / totalPackages, 1);
                     var length2 = Math.Max(length / totalPackages, 1);
@@ -344,8 +349,10 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 ["PRK"] = "North Korea" //Korea, Democratic People's Republic of
             };
 
-            return uspsCountriesWithIsoCode.TryGetValue(shippingOptionRequest.ShippingAddress.Country.ThreeLetterIsoCode, out var countryName) ?
-                countryName : shippingOptionRequest.ShippingAddress.Country.Name;
+            var shippingCountry = _countryService.GetCountryByAddress(shippingOptionRequest.ShippingAddress);
+
+            return uspsCountriesWithIsoCode.TryGetValue(shippingCountry.ThreeLetterIsoCode, out var countryName) ?
+                countryName : shippingCountry.Name;
         }
 
         /// <summary>
@@ -452,29 +459,24 @@ namespace Nop.Plugin.Shipping.USPS.Services
         private bool IsDomesticRequest(GetShippingOptionRequest getShippingOptionRequest)
         {
             //Origin Country must be USA, Collect USA from list of countries
-            var result = true;
-            if (getShippingOptionRequest?.ShippingAddress?.Country != null)
+            if (_countryService.GetCountryByAddress(getShippingOptionRequest?.ShippingAddress) is Country country)
             {
-                switch (getShippingOptionRequest.ShippingAddress.Country.ThreeLetterIsoCode)
-                {
-                    case "USA": // United States
-                    case "PRI": // Puerto Rico
-                    case "UMI": // United States minor outlying islands
-                    case "ASM": // American Samoa
-                    case "GUM": // Guam
-                    case "MHL": // Marshall Islands
-                    case "FSM": // Micronesia
-                    case "MNP": // Northern Mariana Islands
-                    case "PLW": // Palau
-                    case "VIR": // Virgin Islands (U.S.)
-                        result = true;
-                        break;
-                    default:
-                        result = false;
-                        break;
-                }
+                return new [] 
+                { 
+                    "USA", // United States
+                    "PRI", // Puerto Rico
+                    "UMI", // United States minor outlying islands
+                    "ASM", // American Samoa
+                    "GUM", // Guam
+                    "MHL", // Marshall Islands
+                    "FSM", // Micronesia
+                    "MNP", // Northern Mariana Islands
+                    "PLW", // Palau
+                    "VIR", // Virgin Islands (U.S.)
+                }.Contains(country.ThreeLetterIsoCode);
             }
-            return result;
+
+            return false;
         }
 
         private (IList<ShippingOption> shippingOptions, IEnumerable<string> errors) ParseResponse(RateResponse response)
@@ -493,13 +495,13 @@ namespace Nop.Plugin.Shipping.USPS.Services
             }
 
             shippingOptions.AddRange(response.Packages
-                .SelectMany(x => x.Postage
-                    .Where(isPostageOffered)
-                    .Select(p => new ShippingOption
-                    {
-                        Name = p.MailService,
-                        Rate = _uspsSettings.AdditionalHandlingCharge + p.Rate
-                    })));
+                .SelectMany(x => x.Postage.Where(isPostageOffered))
+                .GroupBy(x => x.Id)
+                .Select(p => new ShippingOption
+                {
+                    Name = p.First().MailService,
+                    Rate = _uspsSettings.AdditionalHandlingCharge + p.Sum(pp => pp.Rate)
+                }));
 
             return (shippingOptions, null);
 

@@ -3,6 +3,7 @@
 //------------------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Nop.Core;
 using Nop.Plugin.Shipping.USPS.Services;
@@ -58,7 +59,7 @@ namespace Nop.Plugin.Shipping.USPS
             if (!getShippingOptionRequest.Items?.Any() ?? true)
                 return new GetShippingOptionResponse { Errors = new[] { "No shipment items" } };
 
-            if (getShippingOptionRequest.ShippingAddress?.Country is null)
+            if (getShippingOptionRequest.ShippingAddress?.CountryId is null)
                 return new GetShippingOptionResponse { Errors = new[] { "Shipping address is not set" } };
 
             return _uspsService.GetRates(getShippingOptionRequest);
@@ -100,18 +101,21 @@ namespace Nop.Plugin.Shipping.USPS
             _settingService.SaveSetting(settings);
 
             //locales
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.Url", "URL");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.Url.Hint", "Specify USPS URL.");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.Username", "Username");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.Username.Hint", "Specify USPS username.");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.Password", "Password");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.Password.Hint", "Specify USPS password.");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge", "Additional handling charge");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge.Hint", "Enter additional handling fee to charge your customers.");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic", "Domestic Carrier Services");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic.Hint", "Select the services you want to offer to customers.");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational", "International Carrier Services");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational.Hint", "Select the services you want to offer to customers.");
+            _localizationService.AddPluginLocaleResource(new Dictionary<string, string>
+            {
+                ["Plugins.Shipping.USPS.Fields.Url"] = "URL",
+                ["Plugins.Shipping.USPS.Fields.Url.Hint"] = "Specify USPS URL.",
+                ["Plugins.Shipping.USPS.Fields.Username"] = "Username",
+                ["Plugins.Shipping.USPS.Fields.Username.Hint"] = "Specify USPS username.",
+                ["Plugins.Shipping.USPS.Fields.Password"] = "Password",
+                ["Plugins.Shipping.USPS.Fields.Password.Hint"] = "Specify USPS password.",
+                ["Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge"] = "Additional handling charge",
+                ["Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge.Hint"] = "Enter additional handling fee to charge your customers.",
+                ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic"] = "Domestic Carrier Services",
+                ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic.Hint"] = "Select the services you want to offer to customers.",
+                ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational"] = "International Carrier Services",
+                ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational.Hint"] = "Select the services you want to offer to customers."
+            });
 
             base.Install();
         }
@@ -125,18 +129,7 @@ namespace Nop.Plugin.Shipping.USPS
             _settingService.DeleteSetting<USPSSettings>();
 
             //locales
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.Url");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.Url.Hint");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.Username");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.Username.Hint");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.Password");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.Password.Hint");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge.Hint");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic.Hint");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational");
-            _localizationService.DeletePluginLocaleResource("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational.Hint");
+            _localizationService.DeletePluginLocaleResources("Plugins.Shipping.USPS");
 
             base.Uninstall();
         }

@@ -60,10 +60,12 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
 
             // Load Domestic service names
             var carrierServicesOfferedDomestic = _uspsSettings.CarrierServicesOfferedDomestic;
+            
             foreach (var service in USPSServices.DomesticServices)
                 model.AvailableCarrierServicesDomestic.Add(service);
 
             if (!string.IsNullOrEmpty(carrierServicesOfferedDomestic))
+            {
                 foreach (var service in USPSServices.DomesticServices)
                 {
                     var serviceId = USPSServices.GetServiceIdDomestic(service);
@@ -74,6 +76,7 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
                             model.CarrierServicesOfferedDomestic.Add(service);
                     }
                 }
+            }
 
             // Load Internation service names
             var carrierServicesOfferedInternational = _uspsSettings.CarrierServicesOfferedInternational;
@@ -95,7 +98,6 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
         }
 
         [HttpPost]
-        [AdminAntiForgery]
         public IActionResult Configure(USPSShippingModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageShippingSettings))

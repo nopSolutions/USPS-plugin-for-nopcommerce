@@ -19,24 +19,24 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         /// </summary>
         private static readonly Dictionary<string, string> _domesticServices = new Dictionary<string, string>
         {
-            {"NONE (disable all domestic services)", "NONE"},
-            {"First-Class", "0"},
-            {"First-Class Mail Letter", "letter"},
-            {"Priority Mail Express Sunday/Holiday Guarantee", "23"},
-            {"Priority Mail Express Flat-Rate Envelope Sunday/Holiday Guarantee", "25"},
-            {"Priority Mail Express Hold For Pickup", "2"},
-            {"Priority Mail Express Flat Rate Envelope Hold For Pickup", "27"},
-            {"Priority Mail Express", "3"},
-            {"Priority Mail Express Flat Rate Envelope", "13"},
-            {"Priority Mail", "1"},
-            {"Priority Mail Flat Rate Envelope", "16"},
-            {"Priority Mail Small Flat Rate Box", "28"},
-            {"Priority Mail Medium Flat Rate Box", "17"},
-            {"Priority Mail Large Flat Rate Box", "22"},
-            {"Standard Post", "4"},
-            {"Bound Printed Matter", "5"},
-            {"Media Mail Parcel", "6"},
-            {"Library Mail Parcel", "7"}
+            ["NONE (disable all domestic services)"] = "NONE",
+            ["First-Class"] = "0",
+            ["First-Class Mail Letter"] = "letter",
+            ["Priority Mail Express Sunday/Holiday Guarantee"] = "23",
+            ["Priority Mail Express Flat-Rate Envelope Sunday/Holiday Guarantee"] = "25",
+            ["Priority Mail Express Hold For Pickup"] = "2",
+            ["Priority Mail Express Flat Rate Envelope Hold For Pickup"] = "27",
+            ["Priority Mail Express"] = "3",
+            ["Priority Mail Express Flat Rate Envelope"] = "13",
+            ["Priority Mail"] = "1",
+            ["Priority Mail Flat Rate Envelope"] = "16",
+            ["Priority Mail Small Flat Rate Box"] = "28",
+            ["Priority Mail Medium Flat Rate Box"] = "17",
+            ["Priority Mail Large Flat Rate Box"] = "22",
+            ["Standard Post"] = "4",
+            ["Bound Printed Matter"] = "5",
+            ["Media Mail Parcel"] = "6",
+            ["Library Mail Parcel"] = "7"
         };
 
         /// <summary>
@@ -44,18 +44,18 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         /// </summary>
         private static readonly Dictionary<string, string> _internationalServices = new Dictionary<string, string>
         {
-            {"NONE (disable all international services)", "NONE"},
-            {"Global Express Guaranteed (GXG)", "4"},
-            {"USPS GXG Envelopes", "12"},
-            {"Priority Mail Express International Flat Rate Envelope", "10"},
-            {"Priority Mail International", "2"},
-            {"Priority Mail International Large Flat Rate Box", "11"},
-            {"Priority Mail International Medium Flat Rate Box", "9"},
-            {"Priority Mail International Small Flat Rate Box", "16"},
-            {"First-Class Mail International Large Envelope", "14"},
-            {"Priority Mail Express International", "1"},
-            {"Priority Mail International Flat Rate Envelope", "8"},
-            {"First-Class Package International Service", "15"}
+            ["NONE (disable all international services)"] = "NONE",
+            ["Global Express Guaranteed (GXG)"] = "4",
+            ["USPS GXG Envelopes"] = "12",
+            ["Priority Mail Express International Flat Rate Envelope"] = "10",
+            ["Priority Mail International"] = "2",
+            ["Priority Mail International Large Flat Rate Box"] = "11",
+            ["Priority Mail International Medium Flat Rate Box"] = "9",
+            ["Priority Mail International Small Flat Rate Box"] = "16",
+            ["First-Class Mail International Large Envelope"] = "14",
+            ["Priority Mail Express International"] = "1",
+            ["Priority Mail International Flat Rate Envelope"] = "8",
+            ["First-Class Package International Service"] = "15"
         };
 
         #endregion
