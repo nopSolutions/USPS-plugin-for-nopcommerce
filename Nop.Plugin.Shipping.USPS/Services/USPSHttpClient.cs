@@ -19,7 +19,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
         #region Fields
 
         private readonly HttpClient _httpClient;
-        private readonly USPSSettings _uspsSettings;
 
         #endregion
 
@@ -34,7 +33,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
             client.DefaultRequestHeaders.Add(HeaderNames.Accept, MimeTypes.ApplicationXml);
 
             _httpClient = client;
-            _uspsSettings = uspsSettings;
         }
 
         #endregion

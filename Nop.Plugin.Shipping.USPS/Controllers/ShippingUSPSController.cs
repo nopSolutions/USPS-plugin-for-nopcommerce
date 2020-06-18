@@ -60,7 +60,7 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
 
             // Load Domestic service names
             var carrierServicesOfferedDomestic = _uspsSettings.CarrierServicesOfferedDomestic;
-            
+
             foreach (var service in USPSServices.DomesticServices)
                 model.AvailableCarrierServicesDomestic.Add(service);
 

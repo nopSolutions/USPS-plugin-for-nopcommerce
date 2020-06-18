@@ -7,7 +7,6 @@ using Nop.Core;
 using Nop.Core.Domain.Directory;
 using Nop.Core.Domain.Shipping;
 using Nop.Plugin.Shipping.USPS.Domain;
-using Nop.Services.Catalog;
 using Nop.Services.Directory;
 using Nop.Services.Logging;
 using Nop.Services.Orders;
@@ -461,8 +460,8 @@ namespace Nop.Plugin.Shipping.USPS.Services
             //Origin Country must be USA, Collect USA from list of countries
             if (_countryService.GetCountryByAddress(getShippingOptionRequest?.ShippingAddress) is Country country)
             {
-                return new [] 
-                { 
+                return new[]
+                {
                     "USA", // United States
                     "PRI", // Puerto Rico
                     "UMI", // United States minor outlying islands

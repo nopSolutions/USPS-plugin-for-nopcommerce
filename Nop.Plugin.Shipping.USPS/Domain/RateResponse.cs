@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -51,7 +50,7 @@ namespace Nop.Plugin.Shipping.USPS.Domain
 
             try
             {
-                var document = await XDocument.LoadAsync(stream, LoadOptions.None, default(CancellationToken));
+                var document = await XDocument.LoadAsync(stream, LoadOptions.None, default);
 
                 if (document?.Root is null)
                     return response;

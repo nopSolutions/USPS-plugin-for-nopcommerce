@@ -1,6 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 
@@ -44,7 +43,7 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         {
             try
             {
-                var document = await XDocument.LoadAsync(stream, LoadOptions.None, default(CancellationToken));
+                var document = await XDocument.LoadAsync(stream, LoadOptions.None, default);
                 var trackInfoElement = document?.Root.Element("TrackInfo");
 
                 if (trackInfoElement == null)
