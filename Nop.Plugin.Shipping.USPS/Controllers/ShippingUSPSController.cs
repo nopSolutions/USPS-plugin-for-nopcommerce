@@ -12,8 +12,9 @@ using Nop.Web.Framework.Mvc.Filters;
 
 namespace Nop.Plugin.Shipping.USPS.Controllers
 {
-    [AuthorizeAdmin]
     [Area(AreaNames.Admin)]
+    [AuthorizeAdmin]
+    [AutoValidateAntiforgeryToken]
     public class ShippingUSPSController : BasePluginController
     {
         #region Fields
