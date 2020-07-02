@@ -19,7 +19,9 @@ namespace Nop.Plugin.Shipping.USPS.Domain
 
             Id = package.Attribute("ID")?.Value ?? string.Empty;
 
-            if (package.Element("Error") is XElement error)
+            var elem = package.Element("Error") ?? (package.Name == "Error" ? package : null);
+
+            if (elem is XElement error)
             {
                 Error = new ResponseError
                 {

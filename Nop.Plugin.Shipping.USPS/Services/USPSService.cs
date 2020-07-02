@@ -482,16 +482,16 @@ namespace Nop.Plugin.Shipping.USPS.Services
         {
             var shippingOptions = new List<ShippingOption>();
 
+            if (response.Packages.Any(x => x.Error != null))
+            {
+                return (shippingOptions, response.Packages.Select(x => $"Error Desc: {x.Error.Description}. USPS Help Context: {x.Error.HelpContext}."));
+            }
+
             if (string.IsNullOrEmpty(_uspsSettings.CarrierServicesOfferedDomestic) || string.IsNullOrEmpty(_uspsSettings.CarrierServicesOfferedInternational))
                 return (shippingOptions, null);
 
             if (!response?.Packages?.Any() ?? true)
                 return (shippingOptions, null);
-
-            if (response.Packages.Any(x => x.Error != null))
-            {
-                return (shippingOptions, response.Packages.Select(x => $"Error Desc: {x.Error.Description}. USPS Help Context: {x.Error.HelpContext}."));
-            }
 
             shippingOptions.AddRange(response.Packages
                 .SelectMany(x => x.Postage.Where(isPostageOffered))

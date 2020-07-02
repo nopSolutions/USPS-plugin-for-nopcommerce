@@ -55,6 +55,12 @@ namespace Nop.Plugin.Shipping.USPS.Domain
                 if (document?.Root is null)
                     return response;
 
+                var error = document?.Root.Name == "Error" ? document?.Root : null;
+                if (error != null)
+                {
+                    response.Packages.Add(new USPSPackageIntl(error));
+                }
+
                 foreach (var package in document?.Root.Elements("Package"))
                 {
                     if (isDomestic)
