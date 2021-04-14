@@ -4,7 +4,7 @@ using Nop.Web.Framework.Mvc.ModelBinding;
 
 namespace Nop.Plugin.Shipping.USPS.Models
 {
-    public class USPSShippingModel : BaseNopModel
+    public record USPSShippingModel : BaseNopModel
     {
         public USPSShippingModel()
         {

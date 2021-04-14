@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Nop.Plugin.Shipping.USPS.Services;
 using Nop.Services.Shipping.Tracking;
 
@@ -28,14 +29,14 @@ namespace Nop.Plugin.Shipping.USPS
         /// </summary>
         /// <param name="trackingNumber">The tracking number to track</param>
         /// <returns>List of Shipment Events.</returns>
-        public IList<ShipmentStatusEvent> GetShipmentEvents(string trackingNumber)
+        public async Task<IList<ShipmentStatusEvent>> GetShipmentEventsAsync(string trackingNumber)
         {
             var result = new List<ShipmentStatusEvent>();
 
             if (string.IsNullOrEmpty(trackingNumber))
                 return result;
 
-            result.AddRange(_uspsService.GetShipmentEvents(trackingNumber));
+            result.AddRange(await _uspsService.GetShipmentEventsAsync(trackingNumber));
 
             return result;
         }
@@ -45,9 +46,9 @@ namespace Nop.Plugin.Shipping.USPS
         /// </summary>
         /// <param name="trackingNumber">The tracking number to track.</param>
         /// <returns>URL of a tracking page.</returns>
-        public string GetUrl(string trackingNumber)
+        public Task<string> GetUrlAsync(string trackingNumber)
         {
-            return $"https://tools.usps.com/go/TrackConfirmAction?tLabels={trackingNumber}";
+            return Task.FromResult($"https://tools.usps.com/go/TrackConfirmAction?tLabels={trackingNumber}");
         }
 
         /// <summary>
@@ -55,13 +56,13 @@ namespace Nop.Plugin.Shipping.USPS
         /// </summary>
         /// <param name="trackingNumber">The tracking number to track.</param>
         /// <returns>True if the tracker can track, otherwise false.</returns>
-        public bool IsMatch(string trackingNumber)
+        public Task<bool> IsMatchAsync(string trackingNumber)
         {
             if (string.IsNullOrWhiteSpace(trackingNumber))
-                return false;
+                return Task.FromResult(false);
 
             //What is a FedEx tracking number format?
-            return false;
+            return Task.FromResult(false);
         }
 
         #endregion

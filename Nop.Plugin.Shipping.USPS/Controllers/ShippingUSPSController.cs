@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Nop.Plugin.Shipping.USPS.Domain;
 using Nop.Plugin.Shipping.USPS.Models;
@@ -46,9 +47,9 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
 
         #region Methods
 
-        public IActionResult Configure()
+        public async Task<IActionResult> Configure()
         {
-            if (!_permissionService.Authorize(StandardPermissionProvider.ManageShippingSettings))
+            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManageShippingSettings))
                 return AccessDeniedView();
 
             var model = new USPSShippingModel
@@ -99,13 +100,13 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
         }
 
         [HttpPost]
-        public IActionResult Configure(USPSShippingModel model)
+        public async Task<IActionResult> Configure(USPSShippingModel model)
         {
-            if (!_permissionService.Authorize(StandardPermissionProvider.ManageShippingSettings))
+            if (!await _permissionService.AuthorizeAsync(StandardPermissionProvider.ManageShippingSettings))
                 return AccessDeniedView();
 
             if (!ModelState.IsValid)
-                return Configure();
+                return await Configure();
 
             //save settings
             _uspsSettings.Url = model.Url;
@@ -173,11 +174,11 @@ namespace Nop.Plugin.Shipping.USPS.Controllers
             else
                 _uspsSettings.CarrierServicesOfferedInternational = carrierServicesOfferedInternational.ToString();
 
-            _settingService.SaveSetting(_uspsSettings);
+            await _settingService.SaveSettingAsync(_uspsSettings);
 
-            _notificationService.SuccessNotification(_localizationService.GetResource("Admin.Plugins.Saved"));
+            _notificationService.SuccessNotification(await _localizationService.GetResourceAsync("Admin.Plugins.Saved"));
 
-            return Configure();
+            return await Configure();
         }
 
         #endregion

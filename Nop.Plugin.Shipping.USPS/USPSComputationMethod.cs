@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Nop.Core;
 using Nop.Plugin.Shipping.USPS.Services;
 using Nop.Services.Configuration;
@@ -50,8 +51,11 @@ namespace Nop.Plugin.Shipping.USPS
         ///  Gets available shipping options
         /// </summary>
         /// <param name="getShippingOptionRequest">A request for getting shipping options</param>
-        /// <returns>Represents a response of getting shipping rate options</returns>
-        public GetShippingOptionResponse GetShippingOptions(GetShippingOptionRequest getShippingOptionRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the represents a response of getting shipping rate options
+        /// </returns>
+        public async Task<GetShippingOptionResponse> GetShippingOptionsAsync(GetShippingOptionRequest getShippingOptionRequest)
         {
             if (getShippingOptionRequest is null)
                 throw new ArgumentNullException(nameof(getShippingOptionRequest));
@@ -62,17 +66,19 @@ namespace Nop.Plugin.Shipping.USPS
             if (getShippingOptionRequest.ShippingAddress?.CountryId is null)
                 return new GetShippingOptionResponse { Errors = new[] { "Shipping address is not set" } };
 
-            return _uspsService.GetRates(getShippingOptionRequest);
+            return await _uspsService.GetRatesAsync(getShippingOptionRequest);
         }
 
         /// <summary>
         /// Gets fixed shipping rate (if shipping rate computation method allows it and the rate can be calculated before checkout).
         /// </summary>
         /// <param name="getShippingOptionRequest">A request for getting shipping options</param>
-        /// <returns>Fixed shipping rate; or null in case there's no fixed shipping rate</returns>
-        public decimal? GetFixedRate(GetShippingOptionRequest getShippingOptionRequest)
+        /// <returns>A task that represents the asynchronous operation
+        /// The task result contains the fixed shipping rate; or null in case there's no fixed shipping rate
+        /// </returns>
+        public Task<decimal?> GetFixedRateAsync(GetShippingOptionRequest getShippingOptionRequest)
         {
-            return null;
+            return Task.FromResult<decimal?>(null);
         }
 
         /// <summary>
@@ -86,7 +92,8 @@ namespace Nop.Plugin.Shipping.USPS
         /// <summary>
         /// Install plugin
         /// </summary>
-        public override void Install()
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public override async Task InstallAsync()
         {
             //settings
             var settings = new USPSSettings
@@ -99,10 +106,10 @@ namespace Nop.Plugin.Shipping.USPS
                 CarrierServicesOfferedDomestic = "",
                 CarrierServicesOfferedInternational = ""
             };
-            _settingService.SaveSetting(settings);
+            await _settingService.SaveSettingAsync(settings);
 
             //locales
-            _localizationService.AddPluginLocaleResource(new Dictionary<string, string>
+            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
             {
                 ["Plugins.Shipping.USPS.Fields.Url"] = "URL",
                 ["Plugins.Shipping.USPS.Fields.Url.Hint"] = "Specify USPS URL.",
@@ -118,32 +125,28 @@ namespace Nop.Plugin.Shipping.USPS
                 ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational.Hint"] = "Select the services you want to offer to customers."
             });
 
-            base.Install();
+            await base.InstallAsync();
         }
 
         /// <summary>
         /// Uninstall plugin
         /// </summary>
-        public override void Uninstall()
+        /// <returns>A task that represents the asynchronous operation</returns>
+        public override async Task UninstallAsync()
         {
             //settings
-            _settingService.DeleteSetting<USPSSettings>();
+            await _settingService.DeleteSettingAsync<USPSSettings>();
 
             //locales
-            _localizationService.DeletePluginLocaleResources("Plugins.Shipping.USPS");
+            await _localizationService.DeleteLocaleResourcesAsync("Plugins.Shipping.USPS");
 
-            base.Uninstall();
+            await base.UninstallAsync();
         }
 
         #endregion
 
         #region Properties
-
-        /// <summary>
-        /// Gets a shipping rate computation method type
-        /// </summary>
-        public ShippingRateComputationMethodType ShippingRateComputationMethodType => ShippingRateComputationMethodType.Realtime;
-
+        
         /// <summary>
         /// Gets a shipment tracker
         /// </summary>

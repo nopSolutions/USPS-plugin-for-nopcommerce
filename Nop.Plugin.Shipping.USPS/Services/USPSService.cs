@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Nop.Core;
-using Nop.Core.Domain.Directory;
 using Nop.Core.Domain.Shipping;
 using Nop.Plugin.Shipping.USPS.Domain;
 using Nop.Services.Directory;
@@ -55,10 +54,10 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
         #region Utilities
 
-        private string CreateRequest(string username, string password, bool isDomestic, GetShippingOptionRequest getShippingOptionRequest)
+        private async Task<string> CreateRequestAsync(string username, string password, bool isDomestic, GetShippingOptionRequest getShippingOptionRequest)
         {
-            var (width, length, height) = GetDimensions(getShippingOptionRequest.Items);
-            var weight = GetWeight(getShippingOptionRequest);
+            var (width, length, height) = await GetDimensionsAsync(getShippingOptionRequest.Items);
+            var weight = await GetWeightAsync(getShippingOptionRequest);
 
             var zipPostalCodeFrom = getShippingOptionRequest.ZipPostalCodeFrom;
             var zipPostalCodeTo = getShippingOptionRequest.ShippingAddress.ZipPostalCode;
@@ -72,10 +71,8 @@ namespace Nop.Plugin.Shipping.USPS.Services
             //Get shopping cart sub-total.  V2 International rates require the package value to be declared.
             var subTotal = decimal.Zero;
             foreach (var packageItem in getShippingOptionRequest.Items)
-            {
                 //TODO we should use getShippingOptionRequest.Items.GetQuantity() method to get subtotal
-                subTotal += _shoppingCartService.GetSubTotal(packageItem.ShoppingCartItem);
-            }
+                subTotal += (await _shoppingCartService.GetSubTotalAsync(packageItem.ShoppingCartItem, true)).subTotal;
 
             var rootElementName = isDomestic ? "RateV4Request" : "IntlRateV2Request";
 
@@ -98,7 +95,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
                     // AC - Updated to V4 API and made minor improvements to allow First Class Packages (package only - not envelopes).
 
                     foreach (var element in xmlStrings.Elements) // Loop over elements with property
-                    {
                         if ((element == "First Class") && (weight >= 14))
                         {
                             // AC - At the time of coding there aren't any First Class shipping options for packages over 13 ounces. 
@@ -124,20 +120,17 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
                             rootRequestElement.Add(packageElement);
                         }
-                    }
                 }
                 else
                 {
                     var totalPackagesDims = 1;
                     var totalPackagesWeights = 1;
-                    if (IsPackageTooHeavy(pounds))
-                    {
+                    if (IsPackageTooHeavy(pounds)) 
                         totalPackagesWeights = Convert.ToInt32(Math.Ceiling(pounds / USPSShippingDefaults.MAX_PACKAGE_WEIGHT));
-                    }
-                    if (IsPackageTooLarge(length, height, width))
-                    {
-                        totalPackagesDims = Convert.ToInt32(Math.Ceiling((decimal)TotalPackageSize(length, height, width) / 108M));
-                    }
+
+                    if (IsPackageTooLarge(length, height, width)) 
+                        totalPackagesDims = Convert.ToInt32(Math.Ceiling(TotalPackageSize(length, height, width) / 108M));
+
                     var totalPackages = totalPackagesDims > totalPackagesWeights ? totalPackagesDims : totalPackagesWeights;
                     if (totalPackages == 0)
                         totalPackages = 1;
@@ -154,9 +147,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
                     var girth2 = height2 + height2 + width2 + width2;
 
                     for (var i = 0; i < totalPackages; i++)
-                    {
                         foreach (var element in xmlStrings.Elements)
-                        {
                             if ((element == "First Class") && (weight >= 14))
                             {
                                 // AC - At the time of coding there aren't any First Class shipping options for packages over 13 ounces. 
@@ -182,8 +173,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
 
                                 rootRequestElement.Add(packageElement);
                             }
-                        }
-                    }
                 }
 
                 #endregion
@@ -204,7 +193,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 var mailType = "Package"; //Package, Envelope
                 var packageSize = GetPackageSize(length, height, width);
 
-                var countryName = FormatCountryForIntlRequest(getShippingOptionRequest);
+                var countryName = await FormatCountryForIntlRequestAsync(getShippingOptionRequest);
 
                 if ((!IsPackageTooHeavy(pounds)) && (!IsPackageTooLarge(length, height, width)))
                 {
@@ -234,22 +223,23 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 {
                     var totalPackagesDims = 1;
                     var totalPackagesWeights = 1;
-                    if (IsPackageTooHeavy(pounds))
-                    {
+
+                    if (IsPackageTooHeavy(pounds)) 
                         totalPackagesWeights = Convert.ToInt32(Math.Ceiling(pounds / USPSShippingDefaults.MAX_PACKAGE_WEIGHT));
-                    }
-                    if (IsPackageTooLarge(length, height, width))
-                    {
-                        totalPackagesDims = Convert.ToInt32(Math.Ceiling((decimal)TotalPackageSize(length, height, width) / 108M));
-                    }
+
+                    if (IsPackageTooLarge(length, height, width)) 
+                        totalPackagesDims = Convert.ToInt32(Math.Ceiling(TotalPackageSize(length, height, width) / 108M));
 
                     var totalPackages = totalPackagesDims > totalPackagesWeights ? totalPackagesDims : totalPackagesWeights;
+                    
                     if (totalPackages == 0)
                         totalPackages = 1;
 
                     var pounds2 = pounds / totalPackages;
+                    
                     if (pounds2 < 1)
                         pounds2 = 1;
+
                     //we don't use ounces
                     var ounces2 = ounces / totalPackages;
                     //int height2 = height / totalPackages;
@@ -323,9 +313,9 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// USPS country hacks
         /// The USPS wants the NAME of the country for international shipments rather than one of the ISO codes
         /// </summary>
-        /// <param name="getShippingOptionRequest">Request</param>
+        /// <param name="shippingOptionRequest">Request</param>
         /// <returns></returns>
-        private string FormatCountryForIntlRequest(GetShippingOptionRequest shippingOptionRequest)
+        private async Task<string> FormatCountryForIntlRequestAsync(GetShippingOptionRequest shippingOptionRequest)
         {
             var uspsCountriesWithIsoCode = new Dictionary<string, string>
             {
@@ -348,7 +338,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 ["PRK"] = "North Korea" //Korea, Democratic People's Republic of
             };
 
-            var shippingCountry = _countryService.GetCountryByAddress(shippingOptionRequest.ShippingAddress);
+            var shippingCountry = await _countryService.GetCountryByAddressAsync(shippingOptionRequest.ShippingAddress);
 
             return uspsCountriesWithIsoCode.TryGetValue(shippingCountry.ThreeLetterIsoCode, out var countryName) ?
                 countryName : shippingCountry.Name;
@@ -358,23 +348,24 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// Get dimensions values of the package
         /// </summary>
         /// <param name="items">Package items</param>
+        /// <param name="minRate">Minimal rate</param>
         /// <returns>Dimensions values</returns>
-        private (decimal width, decimal length, decimal height) GetDimensions(IList<GetShippingOptionRequest.PackageItem> items, int minRate = 1)
+        private async Task<(decimal width, decimal length, decimal height)> GetDimensionsAsync(IList<GetShippingOptionRequest.PackageItem> items, int minRate = 1)
         {
-            var measureDimension = _measureService.GetMeasureDimensionBySystemKeyword(USPSShippingDefaults.MEASURE_DIMENSION_SYSTEM_KEYWORD)
+            var measureDimension = await _measureService.GetMeasureDimensionBySystemKeywordAsync(USPSShippingDefaults.MEASURE_DIMENSION_SYSTEM_KEYWORD)
                 ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MEASURE_DIMENSION_SYSTEM_KEYWORD}\" measure dimension");
 
-            decimal convertAndRoundDimension(decimal dimension)
+            async Task<decimal> convertAndRoundDimensionAsync(decimal dimension)
             {
-                dimension = _measureService.ConvertFromPrimaryMeasureDimension(dimension, measureDimension);
+                dimension = await _measureService.ConvertFromPrimaryMeasureDimensionAsync(dimension, measureDimension);
                 dimension = Convert.ToInt32(Math.Ceiling(dimension));
                 return Math.Max(dimension, minRate);
             }
 
-            _shippingService.GetDimensions(items, out var width, out var length, out var height, true);
-            width = convertAndRoundDimension(width);
-            length = convertAndRoundDimension(length);
-            height = convertAndRoundDimension(height);
+            var (width, length, height) = await _shippingService.GetDimensionsAsync(items, true);
+            width = await convertAndRoundDimensionAsync(width);
+            length = await convertAndRoundDimensionAsync(length);
+            height = await convertAndRoundDimensionAsync(height);
 
             return (width, length, height);
         }
@@ -383,15 +374,17 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// Get weight value of the package
         /// </summary>
         /// <param name="shippingOptionRequest">Shipping option request</param>
+        /// <param name="minWeight">Minimal weight</param>
         /// <returns>Weight value</returns>
-        private int GetWeight(GetShippingOptionRequest shippingOptionRequest, int minWeight = 1)
+        private async Task<int> GetWeightAsync(GetShippingOptionRequest shippingOptionRequest, int minWeight = 1)
         {
-            var measureWeight = _measureService.GetMeasureWeightBySystemKeyword(USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD)
+            var measureWeight = await _measureService.GetMeasureWeightBySystemKeywordAsync(USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD)
                 ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD}\" measure weight");
 
-            var weight = _shippingService.GetTotalWeight(shippingOptionRequest, ignoreFreeShippedItems: true);
-            weight = _measureService.ConvertFromPrimaryMeasureWeight(weight, measureWeight);
+            var weight = await _shippingService.GetTotalWeightAsync(shippingOptionRequest, ignoreFreeShippedItems: true);
+            weight = await _measureService.ConvertFromPrimaryMeasureWeightAsync(weight, measureWeight);
             weight = Math.Max(Math.Ceiling(weight), minWeight);
+
             return Convert.ToInt32(weight);
         }
 
@@ -426,12 +419,11 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// Gets shipping rates
         /// </summary>
         /// <param name="shippingOptionRequest">Shipping option request details</param>
-        /// <param name="saturdayDelivery">Whether to get rates for Saturday Delivery</param>
         /// <returns>Shipping options; errors if exist</returns>
-        private (IList<ShippingOption> shippingOptions, IEnumerable<string> errors) GetShippingOptions(GetShippingOptionRequest shippingOptionRequest)
+        private async Task<(IList<ShippingOption> shippingOptions, IList<string> errors)> GetShippingOptionsAsync(GetShippingOptionRequest shippingOptionRequest)
         {
-            var isDomestic = IsDomesticRequest(shippingOptionRequest);
-            var requestString = CreateRequest(_uspsSettings.Username, _uspsSettings.Password, isDomestic, shippingOptionRequest);
+            var isDomestic = await IsDomesticRequestAsync(shippingOptionRequest);
+            var requestString = await CreateRequestAsync(_uspsSettings.Username, _uspsSettings.Password, isDomestic, shippingOptionRequest);
 
             try
             {
@@ -444,7 +436,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
             {
                 var message = $"USPS Service is currently unavailable, try again later. {ex.Message}";
                 //log errors
-                _logger.Error(message, ex, shippingOptionRequest.Customer);
+                await _logger.ErrorAsync(message, ex, shippingOptionRequest.Customer);
 
                 return (new List<ShippingOption>(), new[] { message });
             }
@@ -455,11 +447,12 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// </summary>
         /// <param name="getShippingOptionRequest">Request</param>
         /// <returns>Result</returns>
-        private bool IsDomesticRequest(GetShippingOptionRequest getShippingOptionRequest)
+        private async Task<bool> IsDomesticRequestAsync(GetShippingOptionRequest getShippingOptionRequest)
         {
+            var country = await _countryService.GetCountryByAddressAsync(getShippingOptionRequest?.ShippingAddress);
+            
             //Origin Country must be USA, Collect USA from list of countries
-            if (_countryService.GetCountryByAddress(getShippingOptionRequest?.ShippingAddress) is Country country)
-            {
+            if (country != null)
                 return new[]
                 {
                     "USA", // United States
@@ -473,24 +466,21 @@ namespace Nop.Plugin.Shipping.USPS.Services
                     "PLW", // Palau
                     "VIR", // Virgin Islands (U.S.)
                 }.Contains(country.ThreeLetterIsoCode);
-            }
 
             return false;
         }
 
-        private (IList<ShippingOption> shippingOptions, IEnumerable<string> errors) ParseResponse(RateResponse response)
+        private (IList<ShippingOption> shippingOptions, IList<string> errors) ParseResponse(RateResponse response)
         {
             var shippingOptions = new List<ShippingOption>();
 
-            if (response.Packages.Any(x => x.Error != null))
-            {
-                return (shippingOptions, response.Packages.Select(x => $"Error Desc: {x.Error.Description}. USPS Help Context: {x.Error.HelpContext}."));
-            }
+            if (response.Packages.Any(x => x.Error != null)) 
+                return (shippingOptions, response.Packages.Select(x => $"Error Desc: {x.Error.Description}. USPS Help Context: {x.Error.HelpContext}.").ToList());
 
             if (string.IsNullOrEmpty(_uspsSettings.CarrierServicesOfferedDomestic) || string.IsNullOrEmpty(_uspsSettings.CarrierServicesOfferedInternational))
                 return (shippingOptions, null);
 
-            if (!response?.Packages?.Any() ?? true)
+            if (!response.Packages?.Any() ?? true)
                 return (shippingOptions, null);
 
             shippingOptions.AddRange(response.Packages
@@ -532,7 +522,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
             var response = await _uspsHttpClient.GetTrackEventsAsync(requestString);
 
             if (response?.TrackDetails?.Any() ?? false)
-            {
                 return response.TrackDetails
                     .Select(x => new ShipmentStatusEvent
                     {
@@ -542,7 +531,6 @@ namespace Nop.Plugin.Shipping.USPS.Services
                         CountryCode = x.Country
                     })
                     .ToList();
-            }
 
             return new List<ShipmentStatusEvent>();
         }
@@ -555,22 +543,21 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// Gets shipping rates
         /// </summary>
         /// <param name="shippingOptionRequest">Shipping option request details</param>
-        /// <returns>Represents a response of getting shipping rate options</returns>
-        public virtual GetShippingOptionResponse GetRates(GetShippingOptionRequest shippingOptionRequest)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the represents a response of getting shipping rate options
+        /// </returns>
+        public virtual async Task<GetShippingOptionResponse> GetRatesAsync(GetShippingOptionRequest shippingOptionRequest)
         {
             var response = new GetShippingOptionResponse();
 
-            var (shippingOptions, error) = GetShippingOptions(shippingOptionRequest);
+            var (shippingOptions, error) = await GetShippingOptionsAsync(shippingOptionRequest);
 
             if (!error?.Any() ?? true)
-            {
                 foreach (var shippingOption in shippingOptions)
                     response.ShippingOptions.Add(shippingOption);
-            }
             else
-            {
                 response.Errors = error.ToList();
-            }
 
             return response;
         }
@@ -579,8 +566,11 @@ namespace Nop.Plugin.Shipping.USPS.Services
         /// Gets all events for a tracking number
         /// </summary>
         /// <param name="trackingNumber">The tracking number to track</param>
-        /// <returns>Shipment events</returns>
-        public virtual IEnumerable<ShipmentStatusEvent> GetShipmentEvents(string trackingNumber)
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the shipment events
+        /// </returns>
+        public virtual async Task<IEnumerable<ShipmentStatusEvent>> GetShipmentEventsAsync(string trackingNumber)
         {
             try
             {
@@ -594,7 +584,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
             {
                 //log errors
                 var message = $"Error while getting UPS shipment tracking info - {trackingNumber}{Environment.NewLine}{exception.Message}";
-                _logger.Error(message, exception, _workContext.CurrentCustomer);
+                await _logger.ErrorAsync(message, exception, await _workContext.GetCurrentCustomerAsync());
 
                 return new List<ShipmentStatusEvent>();
             }
