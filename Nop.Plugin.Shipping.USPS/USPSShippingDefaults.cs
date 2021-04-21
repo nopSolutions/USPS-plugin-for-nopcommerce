@@ -20,6 +20,6 @@
         /// <summary>
         /// USPS Api url
         /// </summary>
-        public const string DEFAULT_URL = "http://production.shippingapis.com/ShippingAPI.dll";
+        public const string DEFAULT_URL = "https://production.shippingapis.com/ShippingAPI.dll";
     }
 }
