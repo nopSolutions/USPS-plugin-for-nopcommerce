@@ -674,7 +674,7 @@ namespace Nop.Plugin.Shipping.USPS
             //settings
             var settings = new USPSSettings
             {
-                Url = "http://production.shippingapis.com/ShippingAPI.dll",
+                Url = "https://production.shippingapis.com/ShippingAPI.dll",
                 Username = "123",
                 Password = "456",
                 AdditionalHandlingCharge = 0,
