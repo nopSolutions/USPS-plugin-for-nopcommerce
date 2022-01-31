@@ -82,6 +82,18 @@ namespace Nop.Plugin.Shipping.USPS
         }
 
         /// <summary>
+        /// Get associated shipment tracker
+        /// </summary>
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the shipment tracker
+        /// </returns>
+        public Task<IShipmentTracker> GetShipmentTrackerAsync()
+        {
+            return Task.FromResult<IShipmentTracker>(null);
+        }
+
+        /// <summary>
         /// Gets a configuration page URL
         /// </summary>
         public override string GetConfigurationPageUrl()
@@ -109,7 +121,7 @@ namespace Nop.Plugin.Shipping.USPS
             await _settingService.SaveSettingAsync(settings);
 
             //locales
-            await _localizationService.AddLocaleResourceAsync(new Dictionary<string, string>
+            await _localizationService.AddOrUpdateLocaleResourceAsync(new Dictionary<string, string>
             {
                 ["Plugins.Shipping.USPS.Fields.Url"] = "URL",
                 ["Plugins.Shipping.USPS.Fields.Url.Hint"] = "Specify USPS URL.",

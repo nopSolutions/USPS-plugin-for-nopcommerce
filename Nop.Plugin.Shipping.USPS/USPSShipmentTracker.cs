@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using Nop.Core.Domain.Shipping;
 using Nop.Plugin.Shipping.USPS.Services;
 using Nop.Services.Shipping.Tracking;
 
@@ -25,11 +26,15 @@ namespace Nop.Plugin.Shipping.USPS
         #region Methods
 
         /// <summary>
-        /// Gets all events for a tracking number.
+        /// Get all shipment events
         /// </summary>
         /// <param name="trackingNumber">The tracking number to track</param>
-        /// <returns>List of Shipment Events.</returns>
-        public async Task<IList<ShipmentStatusEvent>> GetShipmentEventsAsync(string trackingNumber)
+        /// <param name="shipment">Shipment; pass null if the tracking number is not associated with a specific shipment</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the list of shipment events
+        /// </returns>
+        public async Task<IList<ShipmentStatusEvent>> GetShipmentEventsAsync(string trackingNumber, Shipment shipment = null)
         {
             var result = new List<ShipmentStatusEvent>();
 
@@ -42,11 +47,15 @@ namespace Nop.Plugin.Shipping.USPS
         }
 
         /// <summary>
-        /// Gets an URL for a page to show tracking info (third party tracking page).
+        /// Get URL for a page to show tracking info (third party tracking page)
         /// </summary>
-        /// <param name="trackingNumber">The tracking number to track.</param>
-        /// <returns>URL of a tracking page.</returns>
-        public Task<string> GetUrlAsync(string trackingNumber)
+        /// <param name="trackingNumber">The tracking number to track</param>
+        /// <param name="shipment">Shipment; pass null if the tracking number is not associated with a specific shipment</param>
+        /// <returns>
+        /// A task that represents the asynchronous operation
+        /// The task result contains the URL of a tracking page
+        /// </returns>
+        public Task<string> GetUrlAsync(string trackingNumber, Shipment shipment = null)
         {
             return Task.FromResult($"https://tools.usps.com/go/TrackConfirmAction?tLabels={trackingNumber}");
         }

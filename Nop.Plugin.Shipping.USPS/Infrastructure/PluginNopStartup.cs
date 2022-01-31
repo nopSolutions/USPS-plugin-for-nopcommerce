@@ -10,7 +10,7 @@ namespace Nop.Plugin.Shipping.USPS.Infrastructure
     /// <summary>
     /// Represents object for the configuring services on application startup
     /// </summary>
-    public class NopStartup : INopStartup
+    public class PluginNopStartup : INopStartup
     {
         /// <summary>
         /// Add and configure any of the middleware
@@ -21,6 +21,8 @@ namespace Nop.Plugin.Shipping.USPS.Infrastructure
         {
             //client to request Square authorization service
             services.AddHttpClient<USPSHttpClient>().WithProxy();
+
+            services.AddScoped<USPSService>();
         }
 
         /// <summary>
