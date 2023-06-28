@@ -90,7 +90,7 @@ namespace Nop.Plugin.Shipping.USPS
         /// </returns>
         public Task<IShipmentTracker> GetShipmentTrackerAsync()
         {
-            return Task.FromResult<IShipmentTracker>(null);
+            return Task.FromResult<IShipmentTracker>(new USPSShipmentTracker(_uspsService));
         }
 
         /// <summary>
