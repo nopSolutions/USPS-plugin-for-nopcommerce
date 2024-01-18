@@ -20,7 +20,7 @@ namespace Nop.Plugin.Shipping.USPS.Domain
         private static readonly Dictionary<string, string> _domesticServices = new Dictionary<string, string>
         {
             ["NONE (disable all domestic services)"] = "NONE",
-            ["First-Class"] = "0",
+            ["Ground Advantage"] = "1058",
             ["First-Class Mail Letter"] = "letter",
             ["Priority Mail Express Sunday/Holiday Guarantee"] = "23",
             ["Priority Mail Express Flat-Rate Envelope Sunday/Holiday Guarantee"] = "25",

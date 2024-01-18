@@ -428,7 +428,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
             try
             {
                 //get rate response
-                var rateResponse = _uspsHttpClient.GetRatesAsync(requestString, isDomestic).Result;
+                var rateResponse = await _uspsHttpClient.GetRatesAsync(requestString, isDomestic);
 
                 return ParseResponse(rateResponse);
             }
@@ -578,7 +578,7 @@ namespace Nop.Plugin.Shipping.USPS.Services
                 var requestString = CreateTrackRequest(trackingNumber);
 
                 //get tracking info
-                return TrackAsync(requestString).Result;
+                return await TrackAsync(requestString);
             }
             catch (Exception exception)
             {
