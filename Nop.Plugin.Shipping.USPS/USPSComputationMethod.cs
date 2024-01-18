@@ -44,7 +44,6 @@ namespace Nop.Plugin.Shipping.USPS
         }
 
         #endregion
-
         #region Methods
 
         /// <summary>
@@ -154,15 +153,6 @@ namespace Nop.Plugin.Shipping.USPS
 
             await base.UninstallAsync();
         }
-
-        #endregion
-
-        #region Properties
-
-        /// <summary>
-        /// Gets a shipment tracker
-        /// </summary>
-        public IShipmentTracker ShipmentTracker => new USPSShipmentTracker(_uspsService);
 
         #endregion
     }
