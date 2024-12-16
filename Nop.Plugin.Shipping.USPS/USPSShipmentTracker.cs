@@ -58,19 +58,5 @@ public class USPSShipmentTracker : IShipmentTracker
         return Task.FromResult($"https://tools.usps.com/go/TrackConfirmAction?tLabels={trackingNumber}");
     }
 
-    /// <summary>
-    /// Gets if the current tracker can track the tracking number.
-    /// </summary>
-    /// <param name="trackingNumber">The tracking number to track.</param>
-    /// <returns>True if the tracker can track, otherwise false.</returns>
-    public Task<bool> IsMatchAsync(string trackingNumber)
-    {
-        if (string.IsNullOrWhiteSpace(trackingNumber))
-            return Task.FromResult(false);
-
-        //What is a FedEx tracking number format?
-        return Task.FromResult(false);
-    }
-
     #endregion
 }
