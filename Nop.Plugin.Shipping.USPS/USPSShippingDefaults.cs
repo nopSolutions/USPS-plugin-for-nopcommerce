@@ -3,22 +3,65 @@
 public class USPSShippingDefaults
 {
     /// <summary>
-    /// Package weight limit
+    /// Gets the plugin system name
     /// </summary>
-    public const decimal MAX_PACKAGE_WEIGHT = 70;
+    public static string SystemName => "Shipping.USPS";
 
     /// <summary>
-    /// Used measure weight system keyword
+    /// Package weight limit (pounds)
     /// </summary>
-    public const string MEASURE_WEIGHT_SYSTEM_KEYWORD = "ounce";
+    public static decimal MaxPackageWeight => 70;
 
     /// <summary>
     /// Used measure dimension system keyword
     /// </summary>
-    public const string MEASURE_DIMENSION_SYSTEM_KEYWORD = "inches";
+    public static string MeasureDimensionSystemKeyword => "inches";
+
+    /// <summary>
+    /// Used measure weight system keyword
+    /// </summary>
+    public static string MeasureWeightSystemKeyword => "lb";
 
     /// <summary>
     /// USPS Api url
     /// </summary>
-    public const string DEFAULT_URL = "https://production.shippingapis.com/ShippingAPI.dll";
+    public static string ApiUrl => "https://apis.usps.com";
+
+    /// <summary>
+    /// Gets the testing API URL
+    /// </summary>
+    public static string SandboxApiUrl => "https://apis-tem.usps.com";
+
+    /// <summary>
+    /// Domestic mail services
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> DomesticMailClasses => new Dictionary<string, string>()
+    {
+        ["NONE"] = "NONE (disable all domestic services)",
+        ["ALL"] = "All services",
+        ["PARCEL_SELECT"] = "Parcel Select",
+        ["PRIORITY_MAIL_EXPRESS"] = "Priority Mail Express",
+        ["PRIORITY_MAIL"] = "Priority Mail",
+        ["LIBRARY_MAIL"] = "Library Mail",
+        ["MEDIA_MAIL"] = "Media Mail",
+        ["BOUND_PRINTED_MATTER"] = "Bound Printed Matter",
+        ["USPS_CONNECT_LOCAL"] = "USPS Connect Local",
+        ["USPS_CONNECT_MAIL"] = "USPS Connect Mail",
+        ["USPS_CONNECT_REGIONAL"] = "USPS Connect Regional",
+        ["USPS_GROUND_ADVANTAGE"] = "USPS Ground Advantage",
+        ["DOMESTIC_MATTER_FOR_THE_BLIND"] = "Free Matter for the Blind or Handicapped",
+    };
+
+    /// <summary>
+    /// International mail services
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> InternationalMailClasses => new Dictionary<string, string>()
+    {
+        ["NONE"] = "NONE (disable all international services)",
+        ["ALL"] = "All services",
+        ["FIRST-CLASS_PACKAGE_INTERNATIONAL_SERVICE"] = "First-Class Package International Service",
+        ["PRIORITY_MAIL_INTERNATIONAL"] = "Priority Mail International",
+        ["PRIORITY_MAIL_EXPRESS_INTERNATIONAL"] = "Priority Mail Express International",
+        ["GLOBAL_EXPRESS_GUARANTEED"] = "Global Express Guaranteed"
+    };
 }

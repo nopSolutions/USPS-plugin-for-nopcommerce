@@ -1,21 +1,17 @@
-﻿using Microsoft.Net.Http.Headers;
+﻿using System.Text;
+using Microsoft.Net.Http.Headers;
+using Newtonsoft.Json;
 using Nop.Core;
-using Nop.Plugin.Shipping.USPS.Domain;
+using Nop.Plugin.Shipping.USPS.Domain.Api;
 
 namespace Nop.Plugin.Shipping.USPS.Services;
 
 public class USPSHttpClient
 {
-    #region Constants
-
-    private const string RATES_API_KEY_INTERNATIONAL = "IntlRateV2";
-    private const string RATES_API_KEY_DOMESTIC = "RateV4";
-
-    #endregion
-
     #region Fields
 
     private readonly HttpClient _httpClient;
+    private readonly USPSSettings _uspsSettings;
 
     #endregion
 
@@ -24,31 +20,68 @@ public class USPSHttpClient
     public USPSHttpClient(HttpClient client, USPSSettings uspsSettings)
     {
         //configure client
-        client.BaseAddress = new Uri(uspsSettings.Url ?? USPSShippingDefaults.DEFAULT_URL);
         client.Timeout = TimeSpan.FromSeconds(uspsSettings.ClientTimeout ?? 10);
         client.DefaultRequestHeaders.Add(HeaderNames.UserAgent, $"nopCommerce-{NopVersion.CURRENT_VERSION}");
-        client.DefaultRequestHeaders.Add(HeaderNames.Accept, MimeTypes.ApplicationXml);
+        client.DefaultRequestHeaders.Add(HeaderNames.Accept, MimeTypes.ApplicationJson);
 
         _httpClient = client;
+        _uspsSettings = uspsSettings;
     }
 
     #endregion
 
     #region Methods
 
-    public async Task<TrackInfo> GetTrackEventsAsync(string requestString)
+    /// <summary>
+    /// Request services
+    /// </summary>
+    /// <typeparam name="TRequest">Request type</typeparam>
+    /// <typeparam name="TResponse">Response type</typeparam>
+    /// <param name="request">Request</param>
+    /// <returns>The asynchronous task whose result contains response details</returns>
+    public async Task<TResponse> RequestAsync<TRequest, TResponse>(TRequest request) where TRequest : IApiRequest where TResponse : IApiResponse
     {
-        var stream = await _httpClient.GetStreamAsync($"?API=TrackV2&XML={requestString}");
-        return await TrackInfo.LoadAsync(stream);
-    }
+        //prepare request parameters
+        var requestString = new StringContent(JsonConvert.SerializeObject(request, new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore }), Encoding.UTF8, MimeTypes.ApplicationJson);
 
-    public async Task<RateResponse> GetRatesAsync(string requestString, bool isDomestic = true)
-    {
-        var apiKey = isDomestic ? RATES_API_KEY_DOMESTIC : RATES_API_KEY_INTERNATIONAL;
+        var baseUrl = new Uri(_uspsSettings.UseSandbox ? USPSShippingDefaults.SandboxApiUrl : USPSShippingDefaults.ApiUrl);
+        var requestMessage = new HttpRequestMessage(request.Method, new Uri(baseUrl, request.Path))
+        {
+            Content = requestString
+        };
 
-        var responseStream = await _httpClient.GetStreamAsync($"?API={apiKey}&XML={requestString}");
+        //add authorization
+        if (request is IAuthorizedRequest authorized)
+            requestMessage.Headers.Add(HeaderNames.Authorization, $"Bearer {authorized.Token}");
 
-        return await RateResponse.LoadAsync(responseStream, isDomestic);
+        //execute request and get result
+        var httpResponse = await _httpClient.SendAsync(requestMessage);
+        var responseString = await httpResponse.Content.ReadAsStringAsync();
+
+        if (!httpResponse.IsSuccessStatusCode && !string.IsNullOrEmpty(responseString))
+        {
+            var result = JsonConvert.DeserializeObject<ApiError>(responseString);
+
+            if (result?.Error is ApiError.ErrorSummary errorSummary)
+            {
+                var message = $"Request error: {errorSummary.Message}";
+
+                if (errorSummary.Errors?.Any() == true)
+                    message += errorSummary.Errors.Aggregate($"{Environment.NewLine}Details:{Environment.NewLine}", (f, s) => f + s.Detail + Environment.NewLine);
+
+                throw new NopException(message);
+            }
+        }
+
+        try
+        {
+            var result = JsonConvert.DeserializeObject<TResponse>(responseString ?? string.Empty);
+            return result;
+        }
+        catch
+        {
+            throw new NopException($"Request error: {responseString}");
+        }
     }
 
     #endregion
