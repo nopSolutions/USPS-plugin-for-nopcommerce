@@ -56,10 +56,11 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
         ArgumentNullException.ThrowIfNull(getShippingOptionRequest);
 
         if (!getShippingOptionRequest.Items?.Any() ?? true)
-            return new GetShippingOptionResponse { Errors = new[] { "No shipment items" } };
+            return new GetShippingOptionResponse { Errors = ["No shipment items"] };
 
-        if (getShippingOptionRequest.ShippingAddress?.CountryId is null)
-            return new GetShippingOptionResponse { Errors = new[] { "Shipping address is not set" } };
+        var shippingAddress = getShippingOptionRequest.ShippingAddress;
+        if (shippingAddress is null || shippingAddress.CountryId is null || string.IsNullOrEmpty(shippingAddress.ZipPostalCode))
+            return new GetShippingOptionResponse { Errors = ["Shipping address is not set"] };
 
         return await _uspsService.GetRatesAsync(getShippingOptionRequest);
     }
@@ -85,7 +86,7 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
     /// </returns>
     public Task<IShipmentTracker> GetShipmentTrackerAsync()
     {
-        return Task.FromResult<IShipmentTracker>(new USPSShipmentTracker(_uspsService));
+        return Task.FromResult<IShipmentTracker>(_uspsService);
     }
 
     /// <summary>
@@ -105,31 +106,31 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
         //settings
         var settings = new USPSSettings
         {
-            Url = USPSShippingDefaults.DEFAULT_URL,
-            Username = "123",
-            Password = "456",
             ClientTimeout = 10,
             AdditionalHandlingCharge = 0,
-            CarrierServicesOfferedDomestic = "",
-            CarrierServicesOfferedInternational = ""
+            CarrierServiceOfferedDomestic = "ALL",
+            CarrierServiceOfferedInternational = "ALL",
+            TrackingEnabled = false
         };
         await _settingService.SaveSettingAsync(settings);
 
         //locales
         await _localizationService.AddOrUpdateLocaleResourceAsync(new Dictionary<string, string>
         {
-            ["Plugins.Shipping.USPS.Fields.Url"] = "URL",
-            ["Plugins.Shipping.USPS.Fields.Url.Hint"] = "Specify USPS URL.",
-            ["Plugins.Shipping.USPS.Fields.Username"] = "Username",
-            ["Plugins.Shipping.USPS.Fields.Username.Hint"] = "Specify USPS username.",
-            ["Plugins.Shipping.USPS.Fields.Password"] = "Password",
-            ["Plugins.Shipping.USPS.Fields.Password.Hint"] = "Specify USPS password.",
+            ["Plugins.Shipping.USPS.Fields.ConsumerKey"] = "Consumer key",
+            ["Plugins.Shipping.USPS.Fields.ConsumerKey.Hint"] = "Specify the consumer key.",
+            ["Plugins.Shipping.USPS.Fields.ConsumerSecret"] = "Consumer secret",
+            ["Plugins.Shipping.USPS.Fields.ConsumerSecret.Hint"] = "Specify the consumer secret.",
             ["Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge"] = "Additional handling charge",
             ["Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge.Hint"] = "Enter additional handling fee to charge your customers.",
-            ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic"] = "Domestic Carrier Services",
-            ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic.Hint"] = "Select the services you want to offer to customers.",
-            ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational"] = "International Carrier Services",
-            ["Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational.Hint"] = "Select the services you want to offer to customers."
+            ["Plugins.Shipping.USPS.Fields.CarrierServicesDomestic"] = "Domestic Carrier Services",
+            ["Plugins.Shipping.USPS.Fields.CarrierServicesDomestic.Hint"] = "Select the services you want to offer to customers.",
+            ["Plugins.Shipping.USPS.Fields.CarrierServicesInternational"] = "International Carrier Services",
+            ["Plugins.Shipping.USPS.Fields.CarrierServicesInternational.Hint"] = "Select the services you want to offer to customers.",
+            ["Plugins.Shipping.USPS.Fields.UseSandbox"] = "Use sandbox",
+            ["Plugins.Shipping.USPS.Fields.UseSandbox.Hint"] = "Check to use sandbox (testing environment).",
+            ["Plugins.Shipping.USPS.Fields.TrackingEnabled"] = "Tracking",
+            ["Plugins.Shipping.USPS.Fields.TrackingEnabled.Hint"] = "Check to enable the tracking API. The default scopes include OAuth, Addresses, Service Standards, Locations, Service Standards Files, International Pricing, Domestic Pricing, and Shipping Options, each with a quota of 60 calls per hour. To get started with the tracking API, please contact the USPS team by submitting a USPS API service request.",
         });
 
         await base.InstallAsync();
@@ -149,15 +150,6 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
 
         await base.UninstallAsync();
     }
-
-    #endregion
-
-    #region Properties
-
-    /// <summary>
-    /// Gets a shipment tracker
-    /// </summary>
-    public IShipmentTracker ShipmentTracker => new USPSShipmentTracker(_uspsService);
 
     #endregion
 }

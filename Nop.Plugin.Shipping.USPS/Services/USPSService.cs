@@ -1,24 +1,26 @@
-﻿using System.Xml.Linq;
+﻿using System.Globalization;
 using Nop.Core;
 using Nop.Core.Domain.Shipping;
-using Nop.Plugin.Shipping.USPS.Domain;
+using Nop.Plugin.Shipping.USPS.Domain.Api.OAuth;
+using Nop.Plugin.Shipping.USPS.Domain.Api.Rates;
+using Nop.Plugin.Shipping.USPS.Domain.Api.Tracking;
+using Nop.Services.Configuration;
 using Nop.Services.Directory;
 using Nop.Services.Logging;
-using Nop.Services.Orders;
 using Nop.Services.Shipping;
 using Nop.Services.Shipping.Tracking;
 
 namespace Nop.Plugin.Shipping.USPS.Services;
 
-public class USPSService
+public class USPSService : IShipmentTracker
 {
     #region Fields
 
     private readonly ICountryService _countryService;
     private readonly ILogger _logger;
     private readonly IMeasureService _measureService;
+    private readonly ISettingService _settingService;
     private readonly IShippingService _shippingService;
-    private readonly IShoppingCartService _shoppingCartService;
     private readonly IWorkContext _workContext;
     private readonly USPSHttpClient _uspsHttpClient;
     private readonly USPSSettings _uspsSettings;
@@ -30,8 +32,8 @@ public class USPSService
     public USPSService(ICountryService countryService,
         ILogger logger,
         IMeasureService measureService,
+        ISettingService settingService,
         IShippingService shippingService,
-        IShoppingCartService shoppingCartService,
         IWorkContext workContext,
         USPSHttpClient uspsHttpClient,
         USPSSettings uspsSettings)
@@ -39,8 +41,8 @@ public class USPSService
         _countryService = countryService;
         _logger = logger;
         _measureService = measureService;
+        _settingService = settingService;
         _shippingService = shippingService;
-        _shoppingCartService = shoppingCartService;
         _workContext = workContext;
         _uspsHttpClient = uspsHttpClient;
         _uspsSettings = uspsSettings;
@@ -50,305 +52,107 @@ public class USPSService
 
     #region Utilities
 
-    private async Task<string> CreateRequestAsync(string username, string password, bool isDomestic, GetShippingOptionRequest getShippingOptionRequest)
+    /// <summary>
+    /// Handle function and get result
+    /// </summary>
+    /// <typeparam name="TResult">Result type</typeparam>
+    /// <param name="function">Function</param>
+    /// <param name="checkConfig">Whether to check configuration</param>
+    /// <returns>
+    /// A task that represents the asynchronous operation
+    /// The task result contains the result; error if exists
+    /// </returns>
+    private async Task<(TResult Result, string Error)> HandleFunctionAsync<TResult>(Func<Task<TResult>> function,
+        bool checkConfig = true)
     {
+        try
+        {
+            //ensure that plugin is configured
+            if (checkConfig && !IsConfigured(_uspsSettings))
+                throw new NopException($"{USPSShippingDefaults.SystemName} plugin not configured");
+
+            return (await function(), default);
+        }
+        catch (Exception exception)
+        {
+            var logMessage = $"{USPSShippingDefaults.SystemName} error: {Environment.NewLine}{exception.Message}";
+            await _logger.ErrorAsync(logMessage, exception, await _workContext.GetCurrentCustomerAsync());
+
+            return (default, exception.Message);
+        }
+    }
+
+
+    private async Task<DomesticShippingOptionsRequest> CreateDomesticRequestAsync(GetShippingOptionRequest getShippingOptionRequest)
+    {
+        ArgumentNullException.ThrowIfNull(getShippingOptionRequest);
+
         var (width, length, height) = await GetDimensionsAsync(getShippingOptionRequest.Items);
         var weight = await GetWeightAsync(getShippingOptionRequest);
+        var girth = 2 * height + 2 * width;
 
-        var zipPostalCodeFrom = getShippingOptionRequest.ZipPostalCodeFrom;
-        var zipPostalCodeTo = getShippingOptionRequest.ShippingAddress.ZipPostalCode;
+        if (IsPackageTooHeavy(weight))
+            throw new NopException("Package is too heavy");
 
-        //valid values for testing.
-        //Zip to = "20008"; Zip from ="10022"; weight = 2;
+        if (_uspsSettings.CarrierServiceOfferedDomestic == "NONE")
+            return null;
 
-        var pounds = Convert.ToInt32(weight / 16);
-        var ounces = Convert.ToInt32(weight - (pounds * 16.0M));
-        var girth = height + height + width + width;
-        //Get shopping cart sub-total.  V2 International rates require the package value to be declared.
-        var subTotal = decimal.Zero;
-        foreach (var packageItem in getShippingOptionRequest.Items)
-            //TODO we should use getShippingOptionRequest.Items.GetQuantity() method to get subtotal
-            subTotal += (await _shoppingCartService.GetSubTotalAsync(packageItem.ShoppingCartItem, true)).subTotal;
+        var (token, _) = await GetAccessTokenAsync();
 
-        var rootElementName = isDomestic ? "RateV4Request" : "IntlRateV2Request";
-
-        var rootRequestElement = new XElement(rootElementName,
-            new XAttribute("USERID", username),
-            new XAttribute("PASSWORD", password),
-            new XElement("Revision", 2));
-
-        if (isDomestic)
+        return new DomesticShippingOptionsRequest
         {
-            #region domestic request
+            OriginZIPCode = CommonHelper.EnsureMaximumLength(CommonHelper.EnsureNumericOnly(getShippingOptionRequest.ZipPostalCodeFrom), 5),
+            DestinationZIPCode = CommonHelper.EnsureMaximumLength(CommonHelper.EnsureNumericOnly(getShippingOptionRequest.ShippingAddress.ZipPostalCode), 5),
 
-            var xmlStrings = new USPSStrings(); // Create new instance with string array
-
-            if ((!IsPackageTooHeavy(pounds)) && (!IsPackageTooLarge(length, height, width)))
+            PackageDescription = new PackageDescription
             {
-                var packageSize = GetPackageSize(length, height, width);
-                // RJH get all XML strings not commented out for USPSStrings. 
-                // RJH V3 USPS Service must be Express, Express SH, Express Commercial, Express SH Commercial, First Class, Priority, Priority Commercial, Parcel, Library, BPM, Media, ALL or ONLINE;
-                // AC - Updated to V4 API and made minor improvements to allow First Class Packages (package only - not envelopes).
-
-                foreach (var element in xmlStrings.Elements) // Loop over elements with property
-                    if ((element == "First Class") && (weight >= 14))
-                    {
-                        // AC - At the time of coding there aren't any First Class shipping options for packages over 13 ounces. 
-                    }
-                    else
-                    {
-                        var packageElement = new XElement("Package", new XAttribute("ID", 0),
-                            new XElement("Service", element),
-                            new XElement("ZipOrigination", CommonHelper.EnsureMaximumLength(CommonHelper.EnsureNumericOnly(zipPostalCodeFrom), 5)),
-                            new XElement("ZipDestination", CommonHelper.EnsureMaximumLength(CommonHelper.EnsureNumericOnly(zipPostalCodeTo), 5)),
-                            new XElement("Pounds", pounds),
-                            new XElement("Ounces", ounces),
-                            new XElement("Container"),
-                            new XElement("Size", packageSize),
-                            new XElement("Width", width),
-                            new XElement("Length", length),
-                            new XElement("Height", height),
-                            new XElement("Girth", girth),
-                            new XElement("Machinable", false));
-
-                        if (element == "First Class")
-                            packageElement.Add(new XElement("FirstClassMailType", "PARCEL"));
-
-                        rootRequestElement.Add(packageElement);
-                    }
-            }
-            else
-            {
-                var totalPackagesDims = 1;
-                var totalPackagesWeights = 1;
-                if (IsPackageTooHeavy(pounds))
-                    totalPackagesWeights = Convert.ToInt32(Math.Ceiling(pounds / USPSShippingDefaults.MAX_PACKAGE_WEIGHT));
-
-                if (IsPackageTooLarge(length, height, width))
-                    totalPackagesDims = Convert.ToInt32(Math.Ceiling(TotalPackageSize(length, height, width) / 108M));
-
-                var totalPackages = totalPackagesDims > totalPackagesWeights ? totalPackagesDims : totalPackagesWeights;
-                if (totalPackages == 0)
-                    totalPackages = 1;
-
-                var pounds2 = Math.Max(pounds / totalPackages, 1);
-                //we don't use ounces
-                var ounces2 = Math.Max(ounces / totalPackages, 0);
-                var height2 = Math.Max(height / totalPackages, 1);
-                var width2 = Math.Max(width / totalPackages, 1);
-                var length2 = Math.Max(length / totalPackages, 1);
-
-                var packageSize = GetPackageSize(length2, height2, width2);
-
-                var girth2 = height2 + height2 + width2 + width2;
-
-                for (var i = 0; i < totalPackages; i++)
-                    foreach (var element in xmlStrings.Elements)
-                        if ((element == "First Class") && (weight >= 14))
-                        {
-                            // AC - At the time of coding there aren't any First Class shipping options for packages over 13 ounces. 
-                        }
-                        else
-                        {
-                            var packageElement = new XElement("Package", new XAttribute("ID", i),
-                                new XElement("Service", element),
-                                new XElement("ZipOrigination", zipPostalCodeFrom),
-                                new XElement("ZipDestination", zipPostalCodeTo),
-                                new XElement("Pounds", pounds2),
-                                new XElement("Ounces", ounces2),
-                                new XElement("Container"),
-                                new XElement("Size", packageSize),
-                                new XElement("Width", width2),
-                                new XElement("Length", length2),
-                                new XElement("Height", height2),
-                                new XElement("Girth", girth2),
-                                new XElement("Machinable", false));
-
-                            if (element == "First Class")
-                                packageElement.Add(new XElement("FirstClassMailType", "PARCEL"));
-
-                            rootRequestElement.Add(packageElement);
-                        }
-            }
-
-            #endregion
-        }
-        else
-        {
-            #region international request
-
-            //V2 International rates require the package value to be declared.  Max content value for most shipping options is $400 so it is limited here.  
-            var intlSubTotal = subTotal > 400 ? 400 : subTotal;
-
-            //little hack here for international requests
-            length = 12;
-            width = 12;
-            height = 12;
-            girth = height + height + width + width;
-
-            var mailType = "Package"; //Package, Envelope
-            var packageSize = GetPackageSize(length, height, width);
-
-            var countryName = await FormatCountryForIntlRequestAsync(getShippingOptionRequest);
-
-            if ((!IsPackageTooHeavy(pounds)) && (!IsPackageTooLarge(length, height, width)))
-            {
-
-                var packageElement = new XElement("Package", new XAttribute("ID", 0),
-                                new XElement("Pounds", pounds),
-                                new XElement("Ounces", ounces),
-                                new XElement("Machinable", false),
-                                new XElement("MailType", mailType),
-                                new XElement("GXG",
-                                    new XElement("POBoxFlag", "N"),
-                                    new XElement("GiftFlag", "N")),
-                                new XElement("ValueOfContents", intlSubTotal),
-                                new XElement("Country", countryName),
-                                new XElement("Container", "RECTANGULAR"),
-                                new XElement("Size", packageSize),
-                                new XElement("Width", width),
-                                new XElement("Length", length),
-                                new XElement("Height", height),
-                                new XElement("Girth", girth),
-                                new XElement("OriginZip", zipPostalCodeFrom),
-                                new XElement("CommercialFlag", "N"));
-
-                rootRequestElement.Add(packageElement);
-            }
-            else
-            {
-                var totalPackagesDims = 1;
-                var totalPackagesWeights = 1;
-
-                if (IsPackageTooHeavy(pounds))
-                    totalPackagesWeights = Convert.ToInt32(Math.Ceiling(pounds / USPSShippingDefaults.MAX_PACKAGE_WEIGHT));
-
-                if (IsPackageTooLarge(length, height, width))
-                    totalPackagesDims = Convert.ToInt32(Math.Ceiling(TotalPackageSize(length, height, width) / 108M));
-
-                var totalPackages = totalPackagesDims > totalPackagesWeights ? totalPackagesDims : totalPackagesWeights;
-
-                if (totalPackages == 0)
-                    totalPackages = 1;
-
-                var pounds2 = pounds / totalPackages;
-
-                if (pounds2 < 1)
-                    pounds2 = 1;
-
-                //we don't use ounces
-                var ounces2 = ounces / totalPackages;
-                //int height2 = height / totalPackages;
-                //int width2 = width / totalPackages;
-                //int length2 = length / totalPackages;
-                //if (height2 < 1)
-                //    height2 = 1; // Why assign a 1 if it is assigned below 12? Perhaps this is a mistake.
-                //if (width2 < 1)
-                //    width2 = 1; // Similarly
-                //if (length2 < 1)
-                //    length2 = 1; // Similarly
-
-                //little hack here for international requests (uncomment the code above when fixed)
-                var length2 = 12;
-                var width2 = 12;
-                var height2 = 12;
-                var packageSize2 = GetPackageSize(length2, height2, width2);
-                var girth2 = height2 + height2 + width2 + width2;
-
-                for (var i = 0; i < totalPackages; i++)
-                {
-                    var packageElement = new XElement("Package", new XAttribute("ID", i),
-                                new XElement("Pounds", pounds2),
-                                new XElement("Ounces", ounces2),
-                                new XElement("Machinable", false),
-                                new XElement("MailType", mailType),
-                                new XElement("GXG",
-                                    new XElement("POBoxFlag", "N"),
-                                    new XElement("GiftFlag", "N")),
-                                new XElement("ValueOfContents", intlSubTotal),
-                                new XElement("Country", countryName),
-                                new XElement("Container", "RECTANGULAR"),
-                                new XElement("Size", packageSize2),
-                                new XElement("Width", width2),
-                                new XElement("Length", length2),
-                                new XElement("Height", height2),
-                                new XElement("Girth", girth2),
-                                new XElement("OriginZip", zipPostalCodeFrom),
-                                new XElement("CommercialFlag", "N"));
-
-                    rootRequestElement.Add(packageElement);
-                }
-            }
-
-            #endregion
-        }
-
-        return new XDocument(rootRequestElement).ToString();
-    }
-
-    /// <summary>
-    /// Create request details to track shipment
-    /// </summary>
-    /// <param name="trackingNumber">Tracking number</param>
-    /// <returns>String with track request details</returns>
-    private string CreateTrackRequest(string trackingNumber)
-    {
-        //<TrackFieldRequest USERID=\"{}\" PASSWORD=\"{}\">
-        //    <TrackID ID=\"{}\" />
-        //</TrackFieldRequest>
-
-        var document = new XDocument(
-            new XElement("TrackFieldRequest", new XAttribute("USERID", _uspsSettings.Username), new XAttribute("PASSWORD", _uspsSettings.Password),
-                new XElement("TrackID", new XAttribute("ID", trackingNumber)))
-        );
-
-        return document.ToString(SaveOptions.DisableFormatting);
-    }
-
-    private string CreateTransitTimeRequest(TransitDaysAPI postageApiType, string originPostalCode, string destinationPostalCode)
-    {
-        var document = new XDocument(
-            new XElement($"{postageApiType}Request", new XAttribute("USERID", _uspsSettings.Username),
-                new XElement("OriginZip", originPostalCode), 
-                new XElement("DestinationZip", destinationPostalCode))
-        );
-
-        return document.ToString(SaveOptions.DisableFormatting);
-    }
-
-    /// <summary>
-    /// USPS country hacks
-    /// The USPS wants the NAME of the country for international shipments rather than one of the ISO codes
-    /// </summary>
-    /// <param name="shippingOptionRequest">Request</param>
-    /// <returns></returns>
-    private async Task<string> FormatCountryForIntlRequestAsync(GetShippingOptionRequest shippingOptionRequest)
-    {
-        var uspsCountriesWithIsoCode = new Dictionary<string, string>
-        {
-            ["LBY"] = "Cyjrenaica (Libya)", //Libyan Arab Jamahiriya
-            ["LAO"] = "Laos", //Lao People's Democratic Republic
-            ["FLK"] = "South Georgia (Falkland Islands)", //Falkland Islands (Malvinas)
-            ["IRN"] = "Iran", //Iran (Islamic Republic of)
-            ["SJM"] = "Svalbard and Jan Mayen Islands",
-            ["SWZ"] = "Swaziland (Eswatini)", //Swaziland
-            ["VAT"] = "Vatican City", //Vatican City State (Holy See)
-            ["SSD"] = "Sudan", // South Sudan - usps only Sudan
-            ["ANT"] = "Netherlands", //Netherlands Antilles
-            ["PCN"] = "Pitcairn Island", //Pitcairn
-            ["BIH"] = "Bosnia-Herzegovina", //Bosnia and Herzegowina
-            ["BVT"] = "Norway", //Bouvet Island
-            ["CCK"] = "Cocos Island (Australia)", //Cocos (Keeling) Islands
-            ["CIV"] = "Ivory Coast", //Cote D'Ivoire
-            ["RUS"] = "Russia", //Russian Federation
-            ["KOR"] = "South Korea", //Korea
-            ["PRK"] = "North Korea" //Korea, Democratic People's Republic of
+                Weight = weight,
+                Length = length,
+                Width = width,
+                Height = height,
+                Girth = girth,
+                MailClass = _uspsSettings.CarrierServiceOfferedDomestic,
+                HasNonstandardCharacteristics = false,
+                MailingDate = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+            },
+            Token = token
         };
+    }
 
-        var shippingCountry = await _countryService.GetCountryByAddressAsync(shippingOptionRequest.ShippingAddress);
+    private async Task<InternationalShippingOptionsRequest> CreateInternatinalRequestAsync(GetShippingOptionRequest getShippingOptionRequest)
+    {
+        ArgumentNullException.ThrowIfNull(getShippingOptionRequest);
 
-        return uspsCountriesWithIsoCode.TryGetValue(shippingCountry.ThreeLetterIsoCode, out var countryName) ?
-            countryName : shippingCountry.Name;
+        var (width, length, height) = await GetDimensionsAsync(getShippingOptionRequest.Items);
+        var weight = await GetWeightAsync(getShippingOptionRequest);
+        var girth = 2 * height + 2 * width;
+
+        if (IsPackageTooHeavy(weight))
+            throw new NopException("Package is too heavy");
+
+        if (_uspsSettings.CarrierServiceOfferedInternational == "NONE")
+            return null;
+
+        var shippingCountry = await _countryService.GetCountryByAddressAsync(getShippingOptionRequest.ShippingAddress);
+        var (token, _) = await GetAccessTokenAsync();
+
+        return new InternationalShippingOptionsRequest
+        {
+            OriginZIPCode = CommonHelper.EnsureMaximumLength(CommonHelper.EnsureNumericOnly(getShippingOptionRequest.ZipPostalCodeFrom), 5),
+            DestinationCountryCode = shippingCountry.TwoLetterIsoCode,
+            ForeignPostalCode = getShippingOptionRequest.ShippingAddress.ZipPostalCode,
+            PackageDescription = new PackageDescription
+            {
+                Weight = weight,
+                Length = length,
+                Width = width,
+                Height = height,
+                Girth = girth,
+                MailClass = _uspsSettings.CarrierServiceOfferedInternational,
+                HasNonstandardCharacteristics = false,
+            },
+            Token = token
+        };
     }
 
     /// <summary>
@@ -359,8 +163,8 @@ public class USPSService
     /// <returns>Dimensions values</returns>
     private async Task<(decimal width, decimal length, decimal height)> GetDimensionsAsync(IList<GetShippingOptionRequest.PackageItem> items, int minRate = 1)
     {
-        var measureDimension = await _measureService.GetMeasureDimensionBySystemKeywordAsync(USPSShippingDefaults.MEASURE_DIMENSION_SYSTEM_KEYWORD)
-            ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MEASURE_DIMENSION_SYSTEM_KEYWORD}\" measure dimension");
+        var measureDimension = await _measureService.GetMeasureDimensionBySystemKeywordAsync(USPSShippingDefaults.MeasureDimensionSystemKeyword)
+            ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MeasureDimensionSystemKeyword}\" measure dimension");
 
         async Task<decimal> convertAndRoundDimensionAsync(decimal dimension)
         {
@@ -385,8 +189,8 @@ public class USPSService
     /// <returns>Weight value</returns>
     private async Task<int> GetWeightAsync(GetShippingOptionRequest shippingOptionRequest, int minWeight = 1)
     {
-        var measureWeight = await _measureService.GetMeasureWeightBySystemKeywordAsync(USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD)
-            ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MEASURE_WEIGHT_SYSTEM_KEYWORD}\" measure weight");
+        var measureWeight = await _measureService.GetMeasureWeightBySystemKeywordAsync(USPSShippingDefaults.MeasureWeightSystemKeyword)
+            ?? throw new NopException($"USPS shipping service. Could not load \"{USPSShippingDefaults.MeasureWeightSystemKeyword}\" measure weight");
 
         var weight = await _shippingService.GetTotalWeightAsync(shippingOptionRequest, ignoreFreeShippedItems: true);
         weight = await _measureService.ConvertFromPrimaryMeasureWeightAsync(weight, measureWeight);
@@ -396,30 +200,13 @@ public class USPSService
     }
 
     /// <summary>
-    /// Gets shipping rates
+    /// Check whether the plugin is IsConfigured
     /// </summary>
-    /// <param name="shippingOptionRequest">Shipping option request details</param>
-    /// <returns>Shipping options; errors if exist</returns>
-    private async Task<(IList<ShippingOption> shippingOptions, IList<string> errors)> GetShippingOptionsAsync(GetShippingOptionRequest shippingOptionRequest)
+    /// <param name="settings">Plugin settings</param>
+    /// <returns>Result</returns>
+    private bool IsConfigured(USPSSettings settings)
     {
-        var isDomestic = await IsDomesticRequestAsync(shippingOptionRequest);
-        var requestString = await CreateRequestAsync(_uspsSettings.Username, _uspsSettings.Password, isDomestic, shippingOptionRequest);
-
-        try
-        {
-            //get rate response
-            var rateResponse = await _uspsHttpClient.GetRatesAsync(requestString, isDomestic);
-
-            return await ParseResponseAsync(rateResponse, shippingOptionRequest);
-        }
-        catch (Exception ex)
-        {
-            var message = $"USPS Service is currently unavailable, try again later. {ex.Message}";
-            //log errors
-            await _logger.ErrorAsync(message, ex, shippingOptionRequest.Customer);
-
-            return (new List<ShippingOption>(), new[] { message });
-        }
+        return !string.IsNullOrEmpty(settings?.ConsumerKey) && !string.IsNullOrEmpty(settings?.ConsumerSecret);
     }
 
     /// <summary>
@@ -450,126 +237,41 @@ public class USPSService
         return false;
     }
 
-    private async Task<(IList<ShippingOption> shippingOptions, IList<string> errors)> ParseResponseAsync(RateResponse response, GetShippingOptionRequest request)
-    {
-        var shippingOptions = new List<ShippingOption>();
-
-        if (response.Packages.Any(x => x.Error != null))
-            return (shippingOptions, response.Packages.Select(x => $"Error Desc: {x.Error.Description}. USPS Help Context: {x.Error.HelpContext}.").ToList());
-
-        if (string.IsNullOrEmpty(_uspsSettings.CarrierServicesOfferedDomestic) || string.IsNullOrEmpty(_uspsSettings.CarrierServicesOfferedInternational))
-            return (shippingOptions, null);
-
-        if (!response.Packages?.Any() ?? true)
-            return (shippingOptions, null);
-
-        shippingOptions.AddRange(await response.Packages
-            .SelectMany(x => x.Postage.Where(isPostageOffered))
-            .GroupBy(x => x.Id)
-            .SelectAwait(async p => new ShippingOption
-            {
-                Name = p.First().MailService,
-                Rate = _uspsSettings.AdditionalHandlingCharge + p.Sum(pp => pp.Rate),
-                TransitDays = await getTransitDaysAsync(p.First().MailService)
-            }).ToListAsync());
-
-        return (shippingOptions, null);
-
-        // false if the service ID is not in the list of services to offer
-        bool isPostageOffered(Postage p)
-        {
-            var carrierServicesOffered = response.IsDomestic ? _uspsSettings.CarrierServicesOfferedDomestic : _uspsSettings.CarrierServicesOfferedInternational;
-
-            //false if the "First-Class Mail Letter" is not in the list of domestic services to offer
-            if (response.IsDomestic && !carrierServicesOffered.Contains("[letter]"))
-            {
-                var option = p.MailService.ToLowerInvariant();
-                if (option.Contains("letter") || option.Contains("postcard"))
-                    return false;
-            }
-
-            // Add delimiters [] so that single digit IDs aren't found in multi-digit IDs                                    
-            return carrierServicesOffered.Contains($"[{p.Id}]");
-        }
-
-        async Task<int?> getTransitDaysAsync(string service)
-        {
-            //parse out service to make request to correct API and fill Rool Element name
-            var mailType = default(TransitDaysAPI?);
-
-            if (service.Contains("priority", StringComparison.InvariantCultureIgnoreCase))
-                mailType = TransitDaysAPI.PriorityMail;
-
-            if (service.Contains("firstclass", StringComparison.InvariantCultureIgnoreCase) || service.Contains("first class", StringComparison.InvariantCultureIgnoreCase))
-                mailType = TransitDaysAPI.FirstClassMail;
-
-            if (service.Contains("express", StringComparison.InvariantCultureIgnoreCase))
-                mailType = TransitDaysAPI.ExpressMailCommitment;
-
-            if (mailType is null)
-                return null;
-
-            static string formatZip(string zipCode) => CommonHelper.EnsureMaximumLength(CommonHelper.EnsureNumericOnly(zipCode), 5);
-
-            var requestString = CreateTransitTimeRequest(
-                mailType.Value,
-                formatZip(request.ZipPostalCodeFrom),
-                formatZip(request.ShippingAddress.ZipPostalCode));
-
-            var transitResponse = await _uspsHttpClient.GetTransitTimeAsync(mailType.Value, requestString);
-
-            return transitResponse?.Days;
-        }
-    }
-
-    private async Task<IList<ShipmentStatusEvent>> TrackAsync(string requestString)
-    {
-        var response = await _uspsHttpClient.GetTrackEventsAsync(requestString);
-
-        if (response?.TrackDetails?.Any() ?? false)
-            return response.TrackDetails
-                .Select(x => new ShipmentStatusEvent
-                {
-                    Date = x.Date,
-                    EventName = x.Event,
-                    Location = x.City,
-                    CountryCode = x.Country
-                })
-                .ToList();
-
-        return new List<ShipmentStatusEvent>();
-    }
-
-    private static USPSPackageSize GetPackageSize(decimal length, decimal height, decimal width)
-    {
-        //REGULAR: Package dimensions are 12’’ or less;
-        //LARGE: Any package dimension is larger than 12’’.
-        if (length > 12 || height > 12 || length > width)
-            return USPSPackageSize.Large;
-
-        return USPSPackageSize.Regular;
-
-        //int girth = height + height + width + width;
-        //int total = girth + length;
-        //if (total <= 84)
-        //    return USPSPackageSize.Regular;
-        //return USPSPackageSize.Large;
-    }
-
     private static bool IsPackageTooHeavy(decimal weight)
     {
-        return weight > USPSShippingDefaults.MAX_PACKAGE_WEIGHT;
+        return weight > USPSShippingDefaults.MaxPackageWeight;
     }
 
-    private static bool IsPackageTooLarge(decimal length, decimal height, decimal width)
+    /// <summary>
+    /// Get access token
+    /// </summary>
+    /// <returns>
+    /// A task that represents the asynchronous operation
+    /// The task result contains the access token; error message if exists
+    /// </returns>
+    private async Task<(string Token, string Error)> GetAccessTokenAsync()
     {
-        var total = TotalPackageSize(length, height, width);
-        return total > 130;
-    }
+        if (!string.IsNullOrEmpty(_uspsSettings.AccessToken) && _uspsSettings.TokenExpiresIn >= DateTime.Now)
+            return (_uspsSettings.AccessToken, string.Empty);
 
-    private static decimal TotalPackageSize(decimal length, decimal height, decimal width)
-    {
-        return height * 2 + width * 2 + length;
+        return await HandleFunctionAsync(async () =>
+        {
+            var result = await _uspsHttpClient.RequestAsync<OAuthApiRequest, OAuthResponse>(new()
+            {
+                GrantType = string.IsNullOrEmpty(_uspsSettings.RefreshToken) ? "client_credentials" : "refresh_token",
+                ClientId = _uspsSettings.ConsumerKey,
+                ClientSecret = _uspsSettings.ConsumerSecret,
+                RefreshToken = _uspsSettings.RefreshToken,
+            });
+
+            _uspsSettings.AccessToken = result.AccessToken;
+            _uspsSettings.TokenExpiresIn = DateTime.Now.AddSeconds(result.TokenExpiresIn);
+            _uspsSettings.RefreshToken = result.RefreshToken;
+            _uspsSettings.RefreshTokenExpiresIn = DateTime.Now.AddSeconds(result.RefreshTokenExpiresIn);
+            await _settingService.SaveSettingAsync(_uspsSettings);
+
+            return result.AccessToken;
+        });
     }
 
     #endregion
@@ -584,48 +286,111 @@ public class USPSService
     /// A task that represents the asynchronous operation
     /// The task result contains the represents a response of getting shipping rate options
     /// </returns>
-    public virtual async Task<GetShippingOptionResponse> GetRatesAsync(GetShippingOptionRequest shippingOptionRequest)
+    public async Task<GetShippingOptionResponse> GetRatesAsync(GetShippingOptionRequest shippingOptionRequest)
     {
         var response = new GetShippingOptionResponse();
 
-        var (shippingOptions, error) = await GetShippingOptionsAsync(shippingOptionRequest);
+        var (shippingOptions, error) = await HandleFunctionAsync(async () =>
+        {
+            //get rate response
+            USPSShippingOptionsRequest request = await IsDomesticRequestAsync(shippingOptionRequest) ?
+                await CreateDomesticRequestAsync(shippingOptionRequest) : await CreateInternatinalRequestAsync(shippingOptionRequest);
 
-        if (!error?.Any() ?? true)
-            foreach (var shippingOption in shippingOptions)
-                response.ShippingOptions.Add(shippingOption);
-        else
-            response.Errors = error.ToList();
+            return request is null ? null : await _uspsHttpClient.RequestAsync<USPSShippingOptionsRequest, USPSShippingOptionsResponse>(request);
+        });
+
+        if (!string.IsNullOrEmpty(error))
+        {
+            response.Errors.Add("USPS Service. Unable to retrieve shipping options");
+            return response;
+        }
+
+        if (shippingOptions?.PricingOptions is null)
+            return response;
+
+        var pricing = shippingOptions.PricingOptions.First();
+
+        if (pricing.ShippingOptions is null)
+            return response;
+
+        foreach (var option in pricing.ShippingOptions.SelectMany(x => x.RateOptions))
+        {
+            var commitment = option.Commitment;
+            foreach (var rate in option.Rates)
+            {
+                response.ShippingOptions.Add(new()
+                {
+                    Name = rate.Description,
+                    Rate = _uspsSettings.AdditionalHandlingCharge + rate.Price,
+                    TransitDays = commitment is null ? null : (int)Math.Ceiling((Convert.ToDateTime(commitment.ScheduleDeliveryDate) - DateTime.UtcNow).TotalDays)
+                });
+            }
+        }
 
         return response;
     }
 
+    #region Tracker
+
     /// <summary>
-    /// Gets all events for a tracking number
+    /// Get all shipment events
     /// </summary>
     /// <param name="trackingNumber">The tracking number to track</param>
+    /// <param name="shipment">Shipment; pass null if the tracking number is not associated with a specific shipment</param>
     /// <returns>
     /// A task that represents the asynchronous operation
-    /// The task result contains the shipment events
+    /// The task result contains the list of shipment events
     /// </returns>
-    public virtual async Task<IEnumerable<ShipmentStatusEvent>> GetShipmentEventsAsync(string trackingNumber)
+    public async Task<IList<ShipmentStatusEvent>> GetShipmentEventsAsync(string trackingNumber, Shipment shipment = null)
     {
-        try
-        {
-            //create request details
-            var requestString = CreateTrackRequest(trackingNumber);
+        if (string.IsNullOrEmpty(trackingNumber))
+            return null;
 
+        if (!_uspsSettings.TrackingEnabled)
+            return null;
+
+        var (token, _) = await GetAccessTokenAsync();
+        var request = new TrackingInformationRequest { TrackingNumber = trackingNumber, Token = token };
+
+        var (trackingEvents, error) = await HandleFunctionAsync(async () =>
+        {
             //get tracking info
-            return await TrackAsync(requestString);
-        }
-        catch (Exception exception)
-        {
-            //log errors
-            var message = $"Error while getting UPS shipment tracking info - {trackingNumber}{Environment.NewLine}{exception.Message}";
-            await _logger.ErrorAsync(message, exception, await _workContext.GetCurrentCustomerAsync());
+            var response = await _uspsHttpClient.RequestAsync<TrackingInformationRequest, TrackingInformationResponse>(request);
 
-            return new List<ShipmentStatusEvent>();
-        }
+            if (response?.TrackingEvents?.Any() != true)
+                return new List<ShipmentStatusEvent>();
+
+            return response.TrackingEvents
+                    .Select(x => new ShipmentStatusEvent
+                    {
+                        Date = x.EventTimestamp,
+                        EventName = x.EventType,
+                        Location = string.Join(", ", new string[] { x.EventCountry, x.EventCity, x.EventZIP }.Where(s => !string.IsNullOrWhiteSpace(s))),
+                        CountryCode = x.EventCountry
+                    }).ToList();
+        });
+
+        if (!string.IsNullOrEmpty(error))
+            return null;
+
+        return trackingEvents;
     }
+
+    /// <summary>
+    /// Get URL for a page to show tracking info (third party tracking page)
+    /// </summary>
+    /// <param name="trackingNumber">The tracking number to track</param>
+    /// <param name="shipment">Shipment; pass null if the tracking number is not associated with a specific shipment</param>
+    /// <returns>
+    /// A task that represents the asynchronous operation
+    /// The task result contains the URL of a tracking page
+    /// </returns>
+    public Task<string> GetUrlAsync(string trackingNumber, Shipment shipment = null)
+    {
+        return Task.FromResult(string.Empty);
+    }
+
+    #endregion
 
     #endregion
 }

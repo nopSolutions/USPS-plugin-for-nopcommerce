@@ -1,4 +1,6 @@
-﻿using Nop.Web.Framework.Models;
+﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Nop.Web.Framework.Models;
 using Nop.Web.Framework.Mvc;
 using Nop.Web.Framework.Mvc.ModelBinding;
 
@@ -6,31 +8,28 @@ namespace Nop.Plugin.Shipping.USPS.Models;
 
 public record USPSShippingModel : BaseNopModel
 {
-    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.Url")]
-    public string Url { get; set; }
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.UseSandbox")]
+    public bool UseSandbox { get; set; }
 
-    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.Username")]
-    public string Username { get; set; }
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.TrackingEnabled")]
+    public bool TrackingEnabled { get; set; }
 
-    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.Password")]
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.ConsumerKey")]
+    public string ConsumerKey { get; set; }
 
     [NoTrim]
-    public string Password { get; set; }
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.ConsumerSecret")]
+    [DataType(DataType.Password)]
+    public string ConsumerSecret { get; set; }
 
     [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.AdditionalHandlingCharge")]
     public decimal AdditionalHandlingCharge { get; set; }
 
-    public List<string> CarrierServicesOfferedDomestic { get; set; } = new();
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.CarrierServicesDomestic")]
+    public string CarrierServicesDomestic { get; set; }
+    public List<SelectListItem> AvailableDomesticServices { get; set; } = new();
 
-    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesDomestic")]
-    public List<string> AvailableCarrierServicesDomestic { get; set; } = new();
-
-    public string[] CheckedCarrierServicesDomestic { get; set; }
-
-    public List<string> CarrierServicesOfferedInternational { get; set; } = new();
-
-    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.AvailableCarrierServicesInternational")]
-    public List<string> AvailableCarrierServicesInternational { get; set; } = new();
-
-    public string[] CheckedCarrierServicesInternational { get; set; }
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.CarrierServicesInternational")]
+    public string CarrierServicesInternational { get; set; }
+    public List<SelectListItem> AvailableInternationalServices { get; set; } = new();
 }
