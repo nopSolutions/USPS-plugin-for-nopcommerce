@@ -9,29 +9,29 @@
             <div class="card-body">
                 <div class="form-group row">
                     <div class="col-md-3">
-                        <nop-label asp-for="Url" />
+                        <nop-label asp-for="UseSandbox" />
                     </div>
                     <div class="col-md-9">
-                        <nop-editor asp-for="Url" />
-                        <span asp-validation-for="Url"></span>
+                        <nop-editor asp-for="UseSandbox" />
+                        <span asp-validation-for="UseSandbox"></span>
                     </div>
                 </div>
                 <div class="form-group row">
                     <div class="col-md-3">
-                        <nop-label asp-for="Username" />
+                        <nop-label asp-for="ConsumerKey" />
                     </div>
                     <div class="col-md-9">
-                        <nop-editor asp-for="Username" />
-                        <span asp-validation-for="Username"></span>
+                        <nop-editor asp-for="ConsumerKey" />
+                        <span asp-validation-for="ConsumerKey"></span>
                     </div>
                 </div>
                 <div class="form-group row">
                     <div class="col-md-3">
-                        <nop-label asp-for="Password" />
+                        <nop-label asp-for="ConsumerSecret" />
                     </div>
                     <div class="col-md-9">
-                        <nop-editor asp-for="Password" />
-                        <span asp-validation-for="Password"></span>
+                        <nop-editor asp-for="ConsumerSecret" asp-required="true" html-attributes="@(new { value = Model.ConsumerSecret })" />
+                        <span asp-validation-for="ConsumerSecret"></span>
                     </div>
                 </div>
                 <div class="form-group row">
@@ -45,34 +45,35 @@
                 </div>
                 <div class="form-group row">
                     <div class="col-md-3">
-                        <nop-label asp-for="AvailableCarrierServicesDomestic" />
+                        <nop-label asp-for="CarrierServicesDomestic" />
                     </div>
                     <div class="col-md-9">
-                        @foreach (var csd in Model.AvailableCarrierServicesDomestic)
-                        {
-                            <div class="checkbox">
-                                <label>
-                                    <input type="checkbox" name="CheckedCarrierServicesDomestic" value="@(csd)" checked="@Model.CarrierServicesOfferedDomestic.Contains(csd)" />
-                                    @csd
-                                </label>
-                            </div>
-                        }
+                        <div class="select2-blue">
+                            <select asp-for="CarrierServicesDomestic"
+                                asp-items="Model.AvailableDomesticServices"
+                                class="form-control select2" data-dropdown-css-class="select2-blue"></select>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group row">
                     <div class="col-md-3">
-                        <nop-label asp-for="AvailableCarrierServicesInternational" />
+                        <nop-label asp-for="CarrierServicesInternational" />
                     </div>
                     <div class="col-md-9">
-                        @foreach (var csd in Model.AvailableCarrierServicesInternational)
-                        {
-                            <div class="checkbox">
-                                <label>
-                                    <input type="checkbox" name="CheckedCarrierServicesInternational" value="@(csd)" checked="@Model.CarrierServicesOfferedInternational.Contains(csd)" />
-                                    @csd
-                                </label>
-                            </div>
-                        }
+                        <div class="select2-blue">
+                            <select asp-for="CarrierServicesInternational"
+                                asp-items="Model.AvailableInternationalServices"
+                                class="form-control select2" data-dropdown-css-class="select2-blue"></select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <div class="col-md-3">
+                        <nop-label asp-for="TrackingEnabled" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-editor asp-for="TrackingEnabled" />
+                        <span asp-validation-for="TrackingEnabled"></span>
                     </div>
                 </div>
                 <div class="form-group row">
@@ -84,3 +85,10 @@
         </div>
     </div>
 </form>
+
+<script>
+    $(function() {
+        $("#@Html.IdFor(m => m.CarrierServicesDomestic)").select2()
+        $("#@Html.IdFor(m => m.CarrierServicesInternational)").select2()
+    });
+</script>
