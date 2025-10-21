@@ -108,8 +108,8 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
         {
             ClientTimeout = 10,
             AdditionalHandlingCharge = 0,
-            CarrierServiceOfferedDomestic = "ALL",
-            CarrierServiceOfferedInternational = "ALL",
+            CarrierServiceOfferedDomestic = ["ALL"],
+            CarrierServiceOfferedInternational = ["ALL"],
             TrackingEnabled = false
         };
         await _settingService.SaveSettingAsync(settings);

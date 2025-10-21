@@ -94,7 +94,7 @@ public class USPSService : IShipmentTracker
         if (IsPackageTooHeavy(weight))
             throw new NopException("Package is too heavy");
 
-        if (_uspsSettings.CarrierServiceOfferedDomestic == "NONE")
+        if (_uspsSettings.CarrierServiceOfferedDomestic is null || !_uspsSettings.CarrierServiceOfferedDomestic.Any())
             return null;
 
         var (token, _) = await GetAccessTokenAsync();
@@ -111,7 +111,7 @@ public class USPSService : IShipmentTracker
                 Width = width,
                 Height = height,
                 Girth = girth,
-                MailClass = _uspsSettings.CarrierServiceOfferedDomestic,
+                MailClass = "ALL",
                 HasNonstandardCharacteristics = false,
                 MailingDate = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
             },
@@ -130,7 +130,7 @@ public class USPSService : IShipmentTracker
         if (IsPackageTooHeavy(weight))
             throw new NopException("Package is too heavy");
 
-        if (_uspsSettings.CarrierServiceOfferedInternational == "NONE")
+        if (_uspsSettings.CarrierServiceOfferedInternational is null || !_uspsSettings.CarrierServiceOfferedInternational.Any())
             return null;
 
         var shippingCountry = await _countryService.GetCountryByAddressAsync(getShippingOptionRequest.ShippingAddress);
@@ -148,7 +148,7 @@ public class USPSService : IShipmentTracker
                 Width = width,
                 Height = height,
                 Girth = girth,
-                MailClass = _uspsSettings.CarrierServiceOfferedInternational,
+                MailClass = "ALL",
                 HasNonstandardCharacteristics = false,
             },
             Token = token
@@ -289,11 +289,12 @@ public class USPSService : IShipmentTracker
     public async Task<GetShippingOptionResponse> GetRatesAsync(GetShippingOptionRequest shippingOptionRequest)
     {
         var response = new GetShippingOptionResponse();
+        var isDomestic = await IsDomesticRequestAsync(shippingOptionRequest);
 
         var (shippingOptions, error) = await HandleFunctionAsync(async () =>
         {
             //get rate response
-            USPSShippingOptionsRequest request = await IsDomesticRequestAsync(shippingOptionRequest) ?
+            USPSShippingOptionsRequest request = isDomestic ?
                 await CreateDomesticRequestAsync(shippingOptionRequest) : await CreateInternatinalRequestAsync(shippingOptionRequest);
 
             return request is null ? null : await _uspsHttpClient.RequestAsync<USPSShippingOptionsRequest, USPSShippingOptionsResponse>(request);
@@ -313,7 +314,11 @@ public class USPSService : IShipmentTracker
         if (pricing.ShippingOptions is null)
             return response;
 
-        foreach (var option in pricing.ShippingOptions.SelectMany(x => x.RateOptions))
+        var mailClasses = isDomestic ? _uspsSettings.CarrierServiceOfferedDomestic : _uspsSettings.CarrierServiceOfferedInternational;
+
+        foreach (var option in pricing.ShippingOptions
+            .Where(s => mailClasses.Contains("ALL") || mailClasses.Contains(s.MailClass))
+            .SelectMany(x => x.RateOptions))
         {
             var commitment = option.Commitment;
             foreach (var rate in option.Rates)

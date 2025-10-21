@@ -47,12 +47,12 @@ public class USPSSettings : ISettings
     /// <summary>
     /// Get or sets available domestic carrier service
     /// </summary>
-    public string CarrierServiceOfferedDomestic { get; set; }
+    public List<string> CarrierServiceOfferedDomestic { get; set; } = new();
 
     /// <summary>
     /// Get or sets available international carrier service
     /// </summary>
-    public string CarrierServiceOfferedInternational { get; set; }
+    public List<string> CarrierServiceOfferedInternational { get; set; } = new();
 
     /// <summary>
     /// Gets or sets a period (in seconds) before the request times out.
