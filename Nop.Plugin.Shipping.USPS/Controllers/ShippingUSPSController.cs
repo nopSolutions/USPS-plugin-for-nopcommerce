@@ -59,11 +59,13 @@ public class ShippingUSPSController : BasePluginController
             ConsumerSecret = _uspsSettings.ConsumerSecret,
             AdditionalHandlingCharge = _uspsSettings.AdditionalHandlingCharge,
             SelectedCarrierDomesticServices = _uspsSettings.CarrierServiceOfferedDomestic,
-            SelectedCarrierInternationalServices = _uspsSettings.CarrierServiceOfferedInternational
+            SelectedCarrierInternationalServices = _uspsSettings.CarrierServiceOfferedInternational,
+            SelectedProcessingCategory = _uspsSettings.ProcessingCategoriesOffered
         };
 
         model.AvailableDomesticServices.AddRange(USPSShippingDefaults.DomesticMailClasses.Select(x => new SelectListItem(x.Value, x.Key)));
         model.AvailableInternationalServices.AddRange(USPSShippingDefaults.InternationalMailClasses.Select(x => new SelectListItem(x.Value, x.Key)));
+        model.AvailableProcessingCategory.AddRange(USPSShippingDefaults.ProcessingCategory.Select(x => new SelectListItem(x.Value, x.Key)));
 
         return View("~/Plugins/Shipping.USPS/Views/Configure.cshtml", model);
     }
@@ -85,6 +87,7 @@ public class ShippingUSPSController : BasePluginController
         _uspsSettings.AdditionalHandlingCharge = model.AdditionalHandlingCharge;
         _uspsSettings.CarrierServiceOfferedDomestic = model.SelectedCarrierDomesticServices.ToList();
         _uspsSettings.CarrierServiceOfferedInternational = model.SelectedCarrierInternationalServices.ToList();
+        _uspsSettings.ProcessingCategoriesOffered = model.SelectedProcessingCategory.ToList();
 
         await _settingService.SaveSettingAsync(_uspsSettings);
 

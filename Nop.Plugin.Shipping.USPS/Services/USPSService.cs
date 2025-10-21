@@ -315,13 +315,19 @@ public class USPSService : IShipmentTracker
             return response;
 
         var mailClasses = isDomestic ? _uspsSettings.CarrierServiceOfferedDomestic : _uspsSettings.CarrierServiceOfferedInternational;
-
-        foreach (var option in pricing.ShippingOptions
+        var rateOptions = pricing.ShippingOptions
             .Where(s => mailClasses.Contains("ALL") || mailClasses.Contains(s.MailClass))
-            .SelectMany(x => x.RateOptions))
+            .SelectMany(x => x.RateOptions)
+            .ToList();
+
+        foreach (var option in rateOptions)
         {
             var commitment = option.Commitment;
-            foreach (var rate in option.Rates)
+            var rates = option.Rates
+                .Where(r => _uspsSettings.ProcessingCategoriesOffered.Contains("ALL") || _uspsSettings.ProcessingCategoriesOffered.Contains(r.ProcessingCategory))
+                .ToList();
+
+            foreach (var rate in rates)
             {
                 response.ShippingOptions.Add(new()
                 {
