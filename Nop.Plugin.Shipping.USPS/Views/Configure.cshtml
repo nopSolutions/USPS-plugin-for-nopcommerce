@@ -61,6 +61,14 @@
                 </div>
                 <div class="form-group row">
                     <div class="col-md-3">
+                        <nop-label asp-for="SelectedProcessingCategory" />
+                    </div>
+                    <div class="col-md-9">
+                        <nop-select asp-for="SelectedProcessingCategory" asp-items="Model.AvailableProcessingCategory" asp-multiple="true" />
+                    </div>
+                </div>
+                <div class="form-group row">
+                    <div class="col-md-3">
                         <nop-label asp-for="TrackingEnabled" />
                     </div>
                     <div class="col-md-9">
@@ -82,5 +90,6 @@
     $(function() {
         $("#@Html.IdFor(m => m.SelectedCarrierDomesticServices)").select2()
         $("#@Html.IdFor(m => m.SelectedCarrierInternationalServices)").select2()
+        $("#@Html.IdFor(m => m.SelectedProcessingCategory)").select2()
     });
 </script>

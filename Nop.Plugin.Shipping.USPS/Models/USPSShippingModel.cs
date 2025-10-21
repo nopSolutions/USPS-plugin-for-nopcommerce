@@ -32,4 +32,8 @@ public record USPSShippingModel : BaseNopModel
     [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.CarrierServicesInternational")]
     public IList<string> SelectedCarrierInternationalServices { get; set; } = new List<string>();
     public List<SelectListItem> AvailableInternationalServices { get; set; } = new();
+
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.ProcessingCategory")]
+    public IList<string> SelectedProcessingCategory { get; set; } = new List<string>();
+    public List<SelectListItem> AvailableProcessingCategory { get; set; } = new();
 }
