@@ -39,13 +39,13 @@ public class MigrationNewAPI : MigrationBase
 
         if (!_settingService.SettingExists(uspsSettings, settings => settings.CarrierServiceOfferedDomestic))
         {
-            uspsSettings.CarrierServiceOfferedDomestic = "ALL";
+            uspsSettings.CarrierServiceOfferedDomestic = ["ALL"];
             _settingService.SaveSetting(uspsSettings, settings => settings.CarrierServiceOfferedDomestic);
         }
 
         if (!_settingService.SettingExists(uspsSettings, settings => settings.CarrierServiceOfferedInternational))
         {
-            uspsSettings.CarrierServiceOfferedInternational = "ALL";
+            uspsSettings.CarrierServiceOfferedInternational = ["ALL"];
             _settingService.SaveSetting(uspsSettings, settings => settings.CarrierServiceOfferedInternational);
         }
 
