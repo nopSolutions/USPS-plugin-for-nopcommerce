@@ -6,7 +6,8 @@ using Nop.Services.Localization;
 
 namespace Nop.Plugin.Shipping.USPS.Migrations;
 
-[NopMigration("2025-08-25 00:00:00", "USPS. Update New API", MigrationProcessType.Update)]
+
+[NopMigration("2025-10-21 00:00:00", "USPS. Update New API", MigrationProcessType.Update)]
 public class MigrationNewApi : MigrationBase
 {
     #region Fields
@@ -39,14 +40,20 @@ public class MigrationNewApi : MigrationBase
 
         if (!_settingService.SettingExists(uspsSettings, settings => settings.CarrierServiceOfferedDomestic))
         {
-            uspsSettings.CarrierServiceOfferedDomestic = "ALL";
+            uspsSettings.CarrierServiceOfferedDomestic = ["ALL"];
             _settingService.SaveSetting(uspsSettings, settings => settings.CarrierServiceOfferedDomestic);
         }
 
         if (!_settingService.SettingExists(uspsSettings, settings => settings.CarrierServiceOfferedInternational))
         {
-            uspsSettings.CarrierServiceOfferedInternational = "ALL";
+            uspsSettings.CarrierServiceOfferedInternational = ["ALL"];
             _settingService.SaveSetting(uspsSettings, settings => settings.CarrierServiceOfferedInternational);
+        }
+
+        if (!_settingService.SettingExists(uspsSettings, settings => settings.ProcessingCategoriesOffered))
+        {
+            uspsSettings.ProcessingCategoriesOffered = ["ALL"];
+            _settingService.SaveSetting(uspsSettings, settings => settings.ProcessingCategoriesOffered);
         }
 
         if (!_settingService.SettingExists(uspsSettings, settings => settings.TrackingEnabled))
@@ -75,6 +82,8 @@ public class MigrationNewApi : MigrationBase
             ["Plugins.Shipping.USPS.Fields.CarrierServicesDomestic.Hint"] = "Select the services you want to offer to customers.",
             ["Plugins.Shipping.USPS.Fields.CarrierServicesInternational"] = "Classes of International Mail",
             ["Plugins.Shipping.USPS.Fields.CarrierServicesInternational.Hint"] = "Select the services you want to offer to customers.",
+            ["Plugins.Shipping.USPS.Fields.ProcessingCategory"] = "Processing categories",
+            ["Plugins.Shipping.USPS.Fields.ProcessingCategory.Hint"] = "Select processing categories for the available rates.",
             ["Plugins.Shipping.USPS.Fields.UseSandbox"] = "Use sandbox",
             ["Plugins.Shipping.USPS.Fields.UseSandbox.Hint"] = "Check to use sandbox (testing environment).",
             ["Plugins.Shipping.USPS.Fields.TrackingEnabled"] = "Tracking",

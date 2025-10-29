@@ -45,14 +45,19 @@ public class USPSSettings : ISettings
     public decimal AdditionalHandlingCharge { get; set; }
 
     /// <summary>
-    /// Get or sets available domestic carrier service
+    /// Get or sets available domestic carrier services
     /// </summary>
-    public string CarrierServiceOfferedDomestic { get; set; }
+    public List<string> CarrierServiceOfferedDomestic { get; set; } = new();
 
     /// <summary>
-    /// Get or sets available international carrier service
+    /// Get or sets available international carrier services
     /// </summary>
-    public string CarrierServiceOfferedInternational { get; set; }
+    public List<string> CarrierServiceOfferedInternational { get; set; } = new();
+
+    /// <summary>
+    /// Get or sets available international processing categories
+    /// </summary>
+    public List<string> ProcessingCategoriesOffered { get; set; } = new();
 
     /// <summary>
     /// Gets or sets a period (in seconds) before the request times out.

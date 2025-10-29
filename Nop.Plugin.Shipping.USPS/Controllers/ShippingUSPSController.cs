@@ -53,12 +53,14 @@ public class ShippingUSPSController : BasePluginController
             ConsumerKey = _uspsSettings.ConsumerKey,
             ConsumerSecret = _uspsSettings.ConsumerSecret,
             AdditionalHandlingCharge = _uspsSettings.AdditionalHandlingCharge,
-            CarrierServicesDomestic = _uspsSettings.CarrierServiceOfferedDomestic,
-            CarrierServicesInternational = _uspsSettings.CarrierServiceOfferedInternational
+            SelectedCarrierDomesticServices = _uspsSettings.CarrierServiceOfferedDomestic,
+            SelectedCarrierInternationalServices = _uspsSettings.CarrierServiceOfferedInternational,
+            SelectedProcessingCategory = _uspsSettings.ProcessingCategoriesOffered
         };
 
         model.AvailableDomesticServices.AddRange(USPSShippingDefaults.DomesticMailClasses.Select(x => new SelectListItem(x.Value, x.Key)));
         model.AvailableInternationalServices.AddRange(USPSShippingDefaults.InternationalMailClasses.Select(x => new SelectListItem(x.Value, x.Key)));
+        model.AvailableProcessingCategory.AddRange(USPSShippingDefaults.ProcessingCategory.Select(x => new SelectListItem(x.Value, x.Key)));
 
         return View("~/Plugins/Shipping.USPS/Views/Configure.cshtml", model);
     }
@@ -76,8 +78,9 @@ public class ShippingUSPSController : BasePluginController
         _uspsSettings.ConsumerKey = model.ConsumerKey;
         _uspsSettings.ConsumerSecret = model.ConsumerSecret;
         _uspsSettings.AdditionalHandlingCharge = model.AdditionalHandlingCharge;
-        _uspsSettings.CarrierServiceOfferedDomestic = model.CarrierServicesDomestic;
-        _uspsSettings.CarrierServiceOfferedInternational = model.CarrierServicesInternational;
+        _uspsSettings.CarrierServiceOfferedDomestic = model.SelectedCarrierDomesticServices.ToList();
+        _uspsSettings.CarrierServiceOfferedInternational = model.SelectedCarrierInternationalServices.ToList();
+        _uspsSettings.ProcessingCategoriesOffered = model.SelectedProcessingCategory.ToList();
 
         await _settingService.SaveSettingAsync(_uspsSettings);
 

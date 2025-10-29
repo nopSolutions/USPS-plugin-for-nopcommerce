@@ -108,8 +108,9 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
         {
             ClientTimeout = 10,
             AdditionalHandlingCharge = 0,
-            CarrierServiceOfferedDomestic = "ALL",
-            CarrierServiceOfferedInternational = "ALL",
+            CarrierServiceOfferedDomestic = ["ALL"],
+            CarrierServiceOfferedInternational = ["ALL"],
+            ProcessingCategoriesOffered = ["ALL"],
             TrackingEnabled = false
         };
         await _settingService.SaveSettingAsync(settings);
@@ -127,6 +128,8 @@ public class USPSComputationMethod : BasePlugin, IShippingRateComputationMethod
             ["Plugins.Shipping.USPS.Fields.CarrierServicesDomestic.Hint"] = "Select the services you want to offer to customers.",
             ["Plugins.Shipping.USPS.Fields.CarrierServicesInternational"] = "International Carrier Services",
             ["Plugins.Shipping.USPS.Fields.CarrierServicesInternational.Hint"] = "Select the services you want to offer to customers.",
+            ["Plugins.Shipping.USPS.Fields.ProcessingCategory"] = "Processing categories",
+            ["Plugins.Shipping.USPS.Fields.ProcessingCategory.Hint"] = "Select processing categories for the available rates.",
             ["Plugins.Shipping.USPS.Fields.UseSandbox"] = "Use sandbox",
             ["Plugins.Shipping.USPS.Fields.UseSandbox.Hint"] = "Check to use sandbox (testing environment).",
             ["Plugins.Shipping.USPS.Fields.TrackingEnabled"] = "Tracking",

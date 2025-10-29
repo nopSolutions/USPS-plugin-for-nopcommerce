@@ -26,10 +26,14 @@ public record USPSShippingModel : BaseNopModel
     public decimal AdditionalHandlingCharge { get; set; }
 
     [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.CarrierServicesDomestic")]
-    public string CarrierServicesDomestic { get; set; }
+    public IList<string> SelectedCarrierDomesticServices { get; set; } = new List<string>();
     public List<SelectListItem> AvailableDomesticServices { get; set; } = new();
 
     [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.CarrierServicesInternational")]
-    public string CarrierServicesInternational { get; set; }
+    public IList<string> SelectedCarrierInternationalServices { get; set; } = new List<string>();
     public List<SelectListItem> AvailableInternationalServices { get; set; } = new();
+
+    [NopResourceDisplayName("Plugins.Shipping.USPS.Fields.ProcessingCategory")]
+    public IList<string> SelectedProcessingCategory { get; set; } = new List<string>();
+    public List<SelectListItem> AvailableProcessingCategory { get; set; } = new();
 }
