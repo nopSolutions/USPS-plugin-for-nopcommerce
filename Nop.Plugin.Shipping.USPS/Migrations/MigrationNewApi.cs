@@ -1,8 +1,7 @@
 ﻿using FluentMigrator;
 using Nop.Data;
 using Nop.Data.Migrations;
-using Nop.Services.Configuration;
-using Nop.Services.Localization;
+using Nop.Web.Framework.Extensions;
 
 namespace Nop.Plugin.Shipping.USPS.Migrations;
 
@@ -10,23 +9,6 @@ namespace Nop.Plugin.Shipping.USPS.Migrations;
 [NopMigration("2025-10-21 00:00:00", "USPS. Update New API", MigrationProcessType.Update)]
 public class MigrationNewApi : MigrationBase
 {
-    #region Fields
-
-    protected readonly ILocalizationService _localizationService;
-    protected readonly ISettingService _settingService;
-
-    #endregion
-
-    #region Ctor
-
-    public MigrationNewApi(ILocalizationService localizationService, ISettingService settingService)
-    {
-        _localizationService = localizationService;
-        _settingService = settingService;
-    }
-
-    #endregion
-
     #region Methods
 
     public override void Up()
@@ -36,43 +18,22 @@ public class MigrationNewApi : MigrationBase
 
         #region Settings
 
-        var uspsSettings = _settingService.LoadSetting<USPSSettings>();
-
-        if (!_settingService.SettingExists(uspsSettings, settings => settings.CarrierServiceOfferedDomestic))
-        {
-            uspsSettings.CarrierServiceOfferedDomestic = ["ALL"];
-            _settingService.SaveSetting(uspsSettings, settings => settings.CarrierServiceOfferedDomestic);
-        }
-
-        if (!_settingService.SettingExists(uspsSettings, settings => settings.CarrierServiceOfferedInternational))
-        {
-            uspsSettings.CarrierServiceOfferedInternational = ["ALL"];
-            _settingService.SaveSetting(uspsSettings, settings => settings.CarrierServiceOfferedInternational);
-        }
-
-        if (!_settingService.SettingExists(uspsSettings, settings => settings.ProcessingCategoriesOffered))
-        {
-            uspsSettings.ProcessingCategoriesOffered = ["ALL"];
-            _settingService.SaveSetting(uspsSettings, settings => settings.ProcessingCategoriesOffered);
-        }
-
-        if (!_settingService.SettingExists(uspsSettings, settings => settings.TrackingEnabled))
-        {
-            uspsSettings.TrackingEnabled = false;
-            _settingService.SaveSetting(uspsSettings, settings => settings.TrackingEnabled);
-        }
+        this.SetSettingIfNotExists<USPSSettings, List<string>>(settings => settings.CarrierServiceOfferedDomestic, ["ALL"]);
+        this.SetSettingIfNotExists<USPSSettings, List<string>>(settings => settings.CarrierServiceOfferedInternational, ["ALL"]);
+        this.SetSettingIfNotExists<USPSSettings, List<string>>(settings => settings.ProcessingCategoriesOffered, ["ALL"]);
+        this.SetSettingIfNotExists<USPSSettings, bool>(settings => settings.TrackingEnabled, false);
 
         #endregion
 
         #region Locales
 
-        _localizationService.DeleteLocaleResources(new List<string>
+        this.DeleteLocaleResources(new List<string>
         {
             "Plugins.Shipping.USPS.Fields.Url",
             "Plugins.Shipping.USPS.Fields.Url.Hint"
         });
 
-        _localizationService.AddOrUpdateLocaleResource(new Dictionary<string, string>
+        this.AddOrUpdateLocaleResource(new Dictionary<string, string>
         {
             ["Plugins.Shipping.USPS.Fields.ConsumerKey"] = "Consumer key",
             ["Plugins.Shipping.USPS.Fields.ConsumerKey.Hint"] = "Specify the consumer key.",
